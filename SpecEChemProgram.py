@@ -959,8 +959,8 @@ class MyWindow:
         except:
             print("Error opening file containing the auth token")
             return
-        sender_email = authfile.readline().rstrip()
-        password = authfile.readline().rstrip()
+        sender_email = authfile.readline().strip()
+        password = authfile.readline().strip()
         # Parse recevier emails
         receiver_emails = self.emails.split(",")
 
@@ -1023,8 +1023,8 @@ class MyWindow:
         except:
             print("Error opening file containing the auth token")
             return
-        sender_email = authfile.readline().rstrip()
-        password = authfile.readline().rstrip()
+        sender_email = authfile.readline().strip()
+        password = authfile.readline().strip()
         # Parse recevier emails
         receiver_emails = self.emails.split(",")
 
