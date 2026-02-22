@@ -14,6 +14,7 @@ TODO:
 - Test potentiostat plotting again
 - Test the feature which asks user before closing when experiment is running 
 - Test email sending whenever experiment is completed
+- Break up code into multiple files to increase readability
 
 - Fix bug preventing running too long experiments.
 
