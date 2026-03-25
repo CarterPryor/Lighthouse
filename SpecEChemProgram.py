@@ -23,7 +23,8 @@ TODO:
 - Potential bug fix: Whenever the data is saved, to determine the intensity type, file name, location, etc., the program uses whatever the user has actively selected.
   So it either should be not allowed to change these things while the experiment is running, or changing them does not take effect til the end of data collection.
 
-  
+
+- Switch to pyqtplot for the on-the-fly plotting
 - Allow user to choose the maximum current before automatic stop
 - Make an option (either another program or an option in this one) for chronocoulometry and perhaps for open circuit measurements
 '''
