@@ -28,7 +28,7 @@ In more detail:
 
 6. Once you've extracted the folder, you can run Lighthouse as you would any Python program, only being careful to use the interpreter from the Gamry installation since this has the necessary libraries. For convenience's sake, it may be helpful to [create a virtual environment](https://docs.python.org/3/tutorial/venv.html) that references the Gamry installation, especially if you're running multiple Python versions on your machine or if you are running the program from within an IDE like VS Code. 
 
-7. (Optional) Finally, if you wish to use the email features of Lighthouse, you need to create a file called `auth_token.txt` in Lighthouse's directory. The first line of this file should be a valid GMail account, and the second line should be an auth token you generate for that account. You can use other email addresses too, you just need to modify the two lines of code in `./SpecEChemProgram.py` which use the Google SMTP server. 
+7. (Optional) Finally, if you wish to use the email features of Lighthouse, you need to create a file called `auth_token.txt` in Lighthouse's directory. The first line of this file should be a valid GMail account name (xxx@gmail.com), and the second line should be an [auth token you generate](https://support.google.com/mail/answer/185833?hl=en) for that account. You can use other email addresses too, you just need to modify the two lines of code in `./SpecEChemProgram.py` which use the Google SMTP server. 
 
 ### Usage
 
