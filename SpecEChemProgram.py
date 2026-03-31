@@ -1,6 +1,6 @@
 # Graphical program for collecting electrochemical and spectral data simultaneously using a Gamry potentiostat and OceanOptics spectrometer
 # Originally written by Carter Pryor (carter_pryor@outlook.com) for Graham group at UKY
-# Last modified 2026-02-16
+# Last modified 2026-03-30
 
 # Recommended sample period: >=0.1 s according to Gamry docs
 
@@ -24,7 +24,7 @@ TODO:
   So it either should be not allowed to change these things while the experiment is running, or changing them does not take effect til the end of data collection.
 
 
-- Switch to pyqtplot for the on-the-fly plotting
+- Use blitting to enhance matplotlib render speed
 - Allow user to choose the maximum current before automatic stop
 - Make an option (either another program or an option in this one) for chronocoulometry and perhaps for open circuit measurements
 '''
@@ -600,8 +600,6 @@ class MyWindow:
 
             # Then write out all the rows sequentially
             for i in range(0, len(self.wavelengths)):
-                # Note. Need to look into how often Python flushes these write commands to disk.
-                # The more often the better for data safety, in case of a crash.
 
                 # Write the wavelength first
                 outfile.write(f"{self.wavelengths[i]},")
