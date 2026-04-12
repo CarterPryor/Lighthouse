@@ -10,10 +10,13 @@
 # Lightbulb icon source: <a href="https://www.flaticon.com/free-icons/idea" title="idea icons">Idea icons created by Good Ware - Flaticon</a>
 
 '''
-TODO: 
+TODO:
+- Add cycle # to main data file
+- Test cycle # updating
 - Test potentiostat plotting again
 - Test the feature which asks user before closing when experiment is running 
 - Test email sending whenever experiment is completed
+- Update email sending to include whether or not expt finished completely
 - Break up code into multiple files to increase readability
 
 - Fix bug preventing running too long experiments.
@@ -109,7 +112,7 @@ class MyWindow:
         self.lbl_filename.place(x=20, y=10)
         # actively running label
         self.lbl_running = tk.Label(self.root, text="not running", fg="red")
-        self.lbl_running.place(x=900, y=10)
+        self.lbl_running.place(x=850, y=560)
         # Checkbox to include or not include potentiostat in the current measurement
         self.use_pstat = tk.BooleanVar()
         self.chk_use_pstat = tk.Checkbutton(self.root, text="Use Potentiostat", variable=self.use_pstat, onvalue=True, offvalue=False)
@@ -122,10 +125,10 @@ class MyWindow:
         self.chk_use_spec.place(x=20+20+470, y=540)
         # Button to actually start the measurement
         self.btn_start = tk.Button(self.root, text="Start!", command=self.start_measurement)
-        self.btn_start.place(x=880, y=560)
+        self.btn_start.place(x=750, y=560)
         # Button to abort measurement
         self.btn_abort = tk.Button(self.root, text="Abort", command=self.abort_measurement)
-        self.btn_abort.place(x=930, y=560)
+        self.btn_abort.place(x=800, y=560)
 
         # Default experiment name & operator
         self.experiment_name = "Experiment"
@@ -676,6 +679,8 @@ class MyWindow:
             mbox.showwarning("Value Error", "One of the PStat parameters does not appear to be a valid number.")
             return
 
+        self.current_expt_max_cycles = cycles_num
+
         # Make sure collection time > integration time
         integration_time_ms = self.integration_time_micros / 1000
         # try to get collection time, give an error if the text is not a valid number
@@ -849,7 +854,7 @@ class MyWindow:
         self.acq_curve.set_stop_i_max(True, 5) # automatically stop if current exceeds 5 A
 
         ### Next - show that the exp is running on the GUI
-        self.lbl_running.configure(text="Running...", fg="green")
+        self.lbl_running.configure(text=f"Running: Cycle 0/{self.current_expt_max_cycles}", fg="green")
 
         ### Next - Actually begin the run!
         self.time_start = time.time()
@@ -882,6 +887,7 @@ class MyWindow:
             elapsed_time = now_pstat_pt[1]
             now_potential = now_pstat_pt[2]
             now_current = now_pstat_pt[4]
+            now_cycle = now_pstat_pt[8]
             # Grab the most recent spectrum
             now_raw_intensities = self.spectrometer.intensities(self.enable_dark_correction, self.enable_nonlinearity_correction)
 
@@ -910,6 +916,9 @@ class MyWindow:
             if (elapsed_time - self.last_file_flush > 30):
                 self.outfile.flush()
                 self.last_file_flush = elapsed_time
+
+            # update # of cycles label
+            self.lbl_running.configure(text=f"Running: Cycle {now_cycle}/{self.current_expt_max_cycles}", fg="green")
             # pause til next step
             time.sleep(self.num_freq_s)
         
