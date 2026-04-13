@@ -11,7 +11,7 @@
 
 '''
 TODO:
-- Add cycle # to main data file
+- Test if cycle # to main data file is correct
 - Test cycle # updating
 - Test potentiostat plotting again
 - Test the feature which asks user before closing when experiment is running 
@@ -809,7 +809,7 @@ class MyWindow:
             self.outfile.write(f"Vertex Potential 2 (V): {self.vertex_pot2_text.get()}\n")
             self.outfile.write(f"Scan Rate (V/s): {self.scan_rate_text.get()}\n")
             self.outfile.write(f"Step Size (V): {self.step_size_text.get()}\n")
-            self.outfile.write(f"# Cycles: {self.num_cycles_text.get()}\n")
+            self.outfile.write(f"Max # Cycles: {self.num_cycles_text.get()}\n")
         # include spectrometer info if we are using it
         self.outfile.write(f"Use Spectrometer?: {self.use_spec.get()}\n")
         if (self.use_spec.get()):
@@ -821,7 +821,7 @@ class MyWindow:
             self.outfile.write(f"Number of distinct wavelengths: {len(self.wavelengths):d}\n")
         self.outfile.write("Column headers to the right of potentiostat data are the spectrometer wavelengths in nm.\n\n")
         self.outfile.write(">>>Begin Data<<<\n")
-        self.outfile.write("Time_s,Potential_V,Current_A")
+        self.outfile.write("Time_s,Cycle_num,Potential_V,Current_A")
 
         # write the wavelengths in the column headers
         for wavelength in self.wavelengths:
@@ -906,7 +906,7 @@ class MyWindow:
             # Output this row to file
             self.outfile.write("\n")
             # Write time, potential, current
-            self.outfile.write(f"{elapsed_time},{now_potential},{now_current}")
+            self.outfile.write(f"{elapsed_time},{now_cycle},{now_potential},{now_current}")
             # Write intensities
             for intensity in now_intensities:
                 self.outfile.write(f",{intensity}")
