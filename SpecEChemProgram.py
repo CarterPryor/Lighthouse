@@ -1,6 +1,6 @@
 # Graphical program for collecting electrochemical and spectral data simultaneously using a Gamry potentiostat and OceanOptics spectrometer
 # Originally written by Carter Pryor (carter_pryor@outlook.com) for Graham group at UKY
-# Last modified 2026-04-12
+# Last modified 2026-04-13
 
 # Recommended sample period: >=0.1 s according to Gamry docs
 
@@ -1064,7 +1064,7 @@ class MyWindow:
             # Add a header as a key/value pair to the attachment
             part.add_header(
                 "Content-Disposition",
-                "attachment; filename=test_attach.txt",
+                f"attachment; filename={zip_name}",
             )
             # then attach the file to the email
             message.attach(part)
