@@ -1008,9 +1008,9 @@ class MyWindow:
 
     def try_send_file_emails(self):
         # first, try to create the zip file
-        zip_name = self.filename[:-4] + ".zip"
+        zip_path = self.filename[:-4] + ".zip"
         try:
-            myzip = zipfile.ZipFile(zip_name, mode="w", compression=zipfile.ZIP_DEFLATED, compresslevel=9)
+            myzip = zipfile.ZipFile(zip_path, mode="w", compression=zipfile.ZIP_DEFLATED, compresslevel=9)
             # write each of the files to the zip archive
             myzip.write(self.filename)
             myzip.write(self.dark_filename)
@@ -1055,13 +1055,15 @@ class MyWindow:
         message.attach(MIMEText(body, "plain"))
         # try to attach data too
         try:
-            attachment_file = open(zip_name, 'rb')
+            attachment_file = open(zip_path, 'rb')
             # Add file as "application/octet stream" (?)
             part = MIMEBase("application", "octet-stream")
             part.set_payload(attachment_file.read())
             # Encode binary file into ASCII to be able to send via email
             encoders.encode_base64(part)
             # Add a header as a key/value pair to the attachment
+            zip_path_parts = zip_path.split("/")
+            zip_name = zip_path_parts[-1]
             part.add_header(
                 "Content-Disposition",
                 f"attachment; filename={zip_name}",
