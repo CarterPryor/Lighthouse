@@ -1002,8 +1002,7 @@ class MyWindow:
             print("Could not connect to SMTP server; this may be due to an internet issue on your side or GMail outage")
         except smtplib.SMTPAuthenticationError:
             print("Error authenticating the automatic sender address. Most likely the login token is expired. Make a new email address and token or contact Carter Pryor.")
-        finally:
-            print("Other error occurred while trying to send the email.")
+        
 
 
     def try_send_file_emails(self):
@@ -1087,8 +1086,7 @@ class MyWindow:
             print("Could not connect to SMTP server; this may be due to an internet issue on your side or GMail outage")
         except smtplib.SMTPAuthenticationError:
             print("Error authenticating the automatic sender address. Most likely the login token is expired. Make a new email address and token or contact Carter Pryor.")
-        finally:
-            print("Other error occurred while trying to send the email.")
+        
 
     def abort_measurement(self):
         # only do anything if the acquisition is actually running
