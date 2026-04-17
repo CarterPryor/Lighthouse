@@ -341,10 +341,35 @@ class MyWindow:
             response = mbox.askyesno("Confirm Quit", "An experiment is currently running. Are you sure you want to close the software?")
             # If they say yes, close
             if response == True:
+                # Abort measurement
                 self.abort_measurement()
+                # Wait for measurement thread to finish clean-up
+                self.thread_measurement.join()
+                # end all the other threads if necessary
+                if (hasattr(self, "thread_draw_pstat")):
+                    self.should_draw_pstat = False
+                    self.thread_draw_pstat.join()
+                if (hasattr(self, "thread_draw_spec")):
+                    self.should_draw_spec = False
+                    self.thread_draw_spec.join()
+                if (hasattr(self, "thread_pstat_labels")):
+                    self.should_update_pstat_labels = False
+                    self.thread_pstat_labels.join()
+                # then close window
                 self.root.destroy()
             # otherwise, do nothing
+        # if experiment is not running, just close
         else:
+            # stop running all threads then let them join
+            if (hasattr(self, "thread_draw_pstat")):
+                self.should_draw_pstat = False
+                self.thread_draw_pstat.join()
+            if (hasattr(self, "thread_draw_spec")):
+                self.should_draw_spec = False
+                self.thread_draw_spec.join()
+            if (hasattr(self, "thread_pstat_labels")):
+                self.should_update_pstat_labels = False
+                self.thread_pstat_labels.join()
             self.root.destroy()
 
     # Open a dialogue box to change the experiment name
@@ -384,12 +409,13 @@ class MyWindow:
             self.lbl_pstat_connected.configure(text="connected", fg="green")
             self.lbl_pstat_model.configure(text=f"Model: {model}")
             # Begin updating the labels showing voltage and current
+            self.should_update_pstat_labels = True
             self.thread_pstat_labels = threading.Thread(target=self.update_pstat_readinglabels)
             self.thread_pstat_labels.start()
     
     def update_pstat_readinglabels(self):
         # Loop
-        while True:
+        while self.should_update_pstat_labels:
             # only run if potentiostat is connected
             if (self.has_potentiostat):
                 # if an experiment is actively running, just get the most recent value from that.
@@ -1100,10 +1126,9 @@ class MyWindow:
     def __del__(self): 
         if (self.has_potentiostat):
             self.potentiostat.close()
+            del window.potentiostat
 
 # Initialize a Window object        
 window = MyWindow()
 # Run its main GUI loop
 window.root.mainloop()
-# When its loop has concluded (i.e., the user has closed the window), clean up the potentiostat object to be safe
-del window.potentiostat
