@@ -668,8 +668,14 @@ class MyWindow:
             # get the elapsed time (to determine when to plot)
             elapsed_time = now_pstat_pt[1]
             # get columns 2 and 4 from the data table, which correspond to potentials in V and current in A respectively
-            potentials = data[:, 2]
-            currents = data[:, 4]
+
+            # try block in here temporarily to see if it gets around this thread crashing on start
+            try:
+                potentials = data[:, 2]
+                currents = data[:, 4]
+            except IndexError:
+                print("Index error accessing CV data for plotting")
+                continue
             
             # clear the old plot
             self.axes_cv.clear()
