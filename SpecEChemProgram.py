@@ -889,6 +889,7 @@ class MyWindow:
         self.lbl_running.configure(text=f"Running: Cycle 0/{self.current_expt_max_cycles}", fg="green")
 
         ### Next - Actually begin the run!
+        self.was_aborted = False # flag for if expt was forcibly ended prematurely
         self.time_start = time.time()
         self.calc_run_time = np.abs(v2_num-v1_num) / scanrate_num * 2 * cycles_num
         print(f"Estimated experiment time: {self.calc_run_time/60:.2f} minutes.")
@@ -987,8 +988,8 @@ class MyWindow:
         # update GUI
         self.lbl_running.configure(text="not running", fg="red")
         self.running = False
-        # try to send emails out to notify experiment is complete
-        if (self.emails != ""):
+        # try to send emails out to notify experiment is complete if the emails are there and expt wasn't ended early on purpose
+        if (self.emails != "" and self.was_aborted == False):
             self.try_send_notif_emails()
             self.try_send_file_emails()
     
@@ -1034,7 +1035,6 @@ class MyWindow:
             print("Could not connect to SMTP server; this may be due to an internet issue on your side or GMail outage")
         except smtplib.SMTPAuthenticationError:
             print("Error authenticating the automatic sender address. Most likely the login token is expired. Make a new email address and token or contact Carter Pryor.")
-        
 
 
     def try_send_file_emails(self):
@@ -1118,13 +1118,14 @@ class MyWindow:
             print("Could not connect to SMTP server; this may be due to an internet issue on your side or GMail outage")
         except smtplib.SMTPAuthenticationError:
             print("Error authenticating the automatic sender address. Most likely the login token is expired. Make a new email address and token or contact Carter Pryor.")
-        
+      
 
     def abort_measurement(self):
         # only do anything if the acquisition is actually running
         if (self.running):
             # After "stop" is called, the measurement thread should automatically terminate its while loop
             # which should write the data to disk and finish cleanup after measurement
+            self.was_aborted = True
             self.acq_curve.stop()
 
 
