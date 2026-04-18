@@ -1040,11 +1040,17 @@ class MyWindow:
         try:
             myzip = zipfile.ZipFile(zip_path, mode="w", compression=zipfile.ZIP_DEFLATED, compresslevel=9)
             # write each of the files to the zip archive
-            myzip.write(self.filename)
-            myzip.write(self.dark_filename)
-            myzip.write(self.pstat_data_filename)
+            rel_filename = self.filename.split("/")[-1]
+            myzip.write(self.filename, arcname=rel_filename)
+
+            rel_dark_filename = self.dark_filename.split("/")[-1]
+            myzip.write(self.dark_filename, arcname=rel_dark_filename)
+
+            rel_pstat_data_filename = self.pstat_data_filename.split("/")[-1]
+            myzip.write(self.pstat_data_filename, arcname=rel_pstat_data_filename)
             if (self.has_reference_spec):
-                myzip.write(self.reference_filename)
+                rel_ref_spec_filename = self.reference_filename.split("/")[-1]
+                myzip.write(self.reference_filename, arcname=rel_ref_spec_filename)
             # close and flush file to disk
             myzip.close()
         except:
@@ -1084,8 +1090,8 @@ class MyWindow:
         # try to attach data too
         try:
             attachment_file = open(zip_path, 'rb')
-            # Add file as "application/octet stream" (?)
-            part = MIMEBase("application", "octet-stream")
+            # Add file as "application/zip" (MIME subtype indicating generic binary file)
+            part = MIMEBase("application", "zip")
             part.set_payload(attachment_file.read())
             # Encode binary file into ASCII to be able to send via email
             encoders.encode_base64(part)
