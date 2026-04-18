@@ -1,6 +1,6 @@
 # Graphical program for collecting electrochemical and spectral data simultaneously using a Gamry potentiostat and OceanOptics spectrometer
 # Originally written by Carter Pryor (carter_pryor@outlook.com) for Graham group at UKY
-# Last modified 2026-04-13
+# Last modified 2026-04-17
 
 # Recommended sample period: >=0.1 s according to Gamry docs
 
@@ -11,11 +11,8 @@
 
 '''
 TODO:
-- Test if cycle # to main data file is correct
-- Test cycle # updating
 - Test potentiostat plotting again
-- Test the feature which asks user before closing when experiment is running 
-- Test email sending whenever experiment is completed
+- Update file zipping to use relative paths to make the archive simpler
 - Update email sending to include whether or not expt finished completely
 - Break up code into multiple files to increase readability
 
