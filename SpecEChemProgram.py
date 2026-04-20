@@ -1135,6 +1135,9 @@ class MyWindow:
     def __del__(self): 
         if (self.has_potentiostat):
             self.potentiostat.close()
+            # Gamry recommends calling del on all resources even if the program is going to terminate
+            del self.ramp_signal
+            del self.acq_curve
             del window.potentiostat
 
 # Initialize a Window object        
