@@ -1,6 +1,6 @@
 # Graphical program for collecting electrochemical and spectral data simultaneously using a Gamry potentiostat and OceanOptics spectrometer
 # Originally written by Carter Pryor (carter_pryor@outlook.com) for Graham group at UKY
-# Last modified 2026-04-17
+# Last modified 2026-04-20
 
 # Recommended sample period: >=0.1 s according to Gamry docs
 
@@ -12,7 +12,6 @@
 '''
 TODO:
 - Test potentiostat plotting again
-- Update file zipping to use relative paths to make the archive simpler
 - Update email sending to include whether or not expt finished completely
 - Break up code into multiple files to increase readability
 
@@ -24,7 +23,7 @@ TODO:
   So it either should be not allowed to change these things while the experiment is running, or changing them does not take effect til the end of data collection.
 
 
-- Use blitting to enhance matplotlib render speed
+- Use blitting to enhance matplotlib render speed (esp for spectrometer - just set y data instead of re-plotting the whole thing)
 - Allow user to choose the maximum current before automatic stop
 - Make an option (either another program or an option in this one) for chronocoulometry and perhaps for open circuit measurements
 '''
