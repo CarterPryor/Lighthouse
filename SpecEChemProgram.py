@@ -629,9 +629,9 @@ class MyWindow:
         time.sleep(0.3)
         while (self.should_draw_pstat):
             now_pstat_pt = self.acq_curve.last_data_point()
-
+            num_pts = self.acq_curve.count()
             # if there aren't enough points, skip plotting for now
-            if (self.acq_curve.count() < 2 or now_pstat_pt is None):
+            if (num_pts < 2 or now_pstat_pt is None):
                 continue
             
             # get all the currently acquired data
@@ -652,7 +652,11 @@ class MyWindow:
             # clear the old plot
             self.axes_cv.clear()
             # plot the data
-            self.axes_cv.plot(potentials, currents, color="blue")
+            if (num_pts < 100000):
+                self.axes_cv.plot(potentials, currents, color="blue")
+            else:
+                # if we have > 100,000 pts, only plot every 10th point to save on memory
+                self.axes_cv.plot(potentials[::10], currents[::10], color="blue")
             # label axes
             self.axes_cv.set_xlabel("WE Potential (V)")
             self.axes_cv.set_ylabel("Current (A)")
