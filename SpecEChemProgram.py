@@ -13,15 +13,12 @@
 TODO:
 - Test potentiostat plotting again
 - Update email sending to include whether or not expt finished completely
+- Change the threading model to avoid worker threads pushing GUI updates
 - Break up code into multiple files to increase readability
 
 - Fix bug preventing running too long experiments.
 
-- Test everything saves correctly with the 30 s flushing too
-- Fixed below bug. Just make sure the data collection still works fine.
-- Potential bug fix: Whenever the data is saved, to determine the intensity type, file name, location, etc., the program uses whatever the user has actively selected.
-  So it either should be not allowed to change these things while the experiment is running, or changing them does not take effect til the end of data collection.
-
+- Test everything flushes every 30 s correctly
 
 - Use blitting to enhance matplotlib render speed (esp for spectrometer - just set y data instead of re-plotting the whole thing)
 - Allow user to choose the maximum current before automatic stop
