@@ -1114,7 +1114,7 @@ class MyWindow:
             # Gamry recommends calling del on all resources even if the program is going to terminate
             del self.ramp_signal
             del self.acq_curve
-            del window.potentiostat
+            del self.potentiostat
 
 # Initialize a Window object        
 window = MyWindow()
