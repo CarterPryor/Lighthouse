@@ -527,28 +527,6 @@ class MyWindow:
             
             # sleep until next run
             time.sleep(self.spec_draw_time)
-    '''
-    # Show the current raw intensities right now
-    def show_spec_now(self):
-        if (self.has_spectrometer == False):
-            return    
-        now_intensities = self.spectrometer.intensities(self.enable_dark_correction, self.enable_nonlinearity_correction)
-        # Clear the axes we use to draw
-        self.axes_spectrum.clear()
-        # plot intensities
-        self.axes_spectrum.plot(self.wavelengths, now_intensities, color="blue")
-        # plot a "max intensity" line at 170 000 intensity
-        self.axes_spectrum.plot([0, 3000], [170000, 170000], "--", color="red")
-        # set plot size
-        self.axes_spectrum.set_xlabel("Wavelength (nm)")
-        self.axes_spectrum.set_ylabel("Intensity (a.u.)")
-        self.axes_spectrum.set_xlim(self.wavelengths[0], self.wavelengths[-1])
-        self.axes_spectrum.set_ylim(0, 180000)
-        #self.axes_spectrum.tick_params("both", which="both", direction="inout")
-        self.axes_spectrum.grid()
-        # And draw spectrum
-        self.canv_spectrum.draw()
-    '''
 
     # Sets integration time based off the value user has in the box for it
     def set_integ_time(self):
@@ -670,7 +648,8 @@ class MyWindow:
                 potentials = data[:, 2]
                 currents = data[:, 4]
             except IndexError:
-                print("Index error accessing CV data for plotting")
+                #print("Index error accessing CV data for plotting")
+                print(data.shape)
                 continue
             
             # clear the old plot
