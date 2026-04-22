@@ -642,18 +642,19 @@ class MyWindow:
 
             # try block in here temporarily to see if it gets around this thread crashing on start
             try:
-                potentials = data[:, 2]
-                currents = data[:, 4]
+                potentials = data["vf"]
+                currents = data["im"]
             except IndexError:
-                #print("Index error accessing CV data for plotting")
-                print(data.shape)
+                print("Index error accessing CV data for plotting")
                 continue
             
             # clear the old plot
             self.axes_cv.clear()
             # plot the data
-            if (num_pts < 100000):
+            if (num_pts < 10000):
                 self.axes_cv.plot(potentials, currents, color="blue")
+            elif (num_pts  < 100000):
+                self.axes_cv.plot(potentials[::5], currents[::5], color="blue")
             else:
                 # if we have > 100,000 pts, only plot every 10th point to save on memory
                 self.axes_cv.plot(potentials[::10], currents[::10], color="blue")
