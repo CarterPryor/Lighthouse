@@ -1,6 +1,6 @@
 # Graphical program for collecting electrochemical and spectral data simultaneously using a Gamry potentiostat and OceanOptics spectrometer
 # Originally written by Carter Pryor (carter_pryor@outlook.com) for Graham group at UKY
-# Last modified 2026-04-20
+# Last modified 2026-04-24
 
 # Recommended sample period: >=0.1 s according to Gamry docs
 
@@ -652,8 +652,10 @@ class MyWindow:
             self.axes_cv.clear()
             # plot the data
             if (num_pts < 10000):
+                # full # of points if less than 10k
                 self.axes_cv.plot(potentials, currents, color="blue")
             elif (num_pts  < 100000):
+                # every 5th point if btwn 10k-100k pts
                 self.axes_cv.plot(potentials[::5], currents[::5], color="blue")
             else:
                 # if we have > 100,000 pts, only plot every 10th point to save on memory
