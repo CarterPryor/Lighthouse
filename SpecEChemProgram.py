@@ -13,14 +13,14 @@
 TODO:
 - Test potentiostat plotting again
 - Update email sending to include whether or not expt finished completely
-- Change the threading model to avoid worker threads pushing GUI updates
+- Change the threading model to avoid worker threads pushing GUI updates (change pstat labels, plotting)
 - Break up code into multiple files to increase readability
 
 - Fix bug preventing running too long experiments.
 
 - Test everything flushes every 30 s correctly
 
-- Use blitting to enhance matplotlib render speed (esp for spectrometer - just set y data instead of re-plotting the whole thing)
+- Use blitting to enhance matplotlib render speed
 - Allow user to choose the maximum current before automatic stop
 - Make an option (either another program or an option in this one) for chronocoulometry and perhaps for open circuit measurements
 '''
@@ -272,11 +272,6 @@ class MyWindow:
         self.dark_spec_photo = tk.PhotoImage(file="lightbulb-off-ico.png")
         self.btn_store_dark_spec = tk.Button(self.frame_spec, image=self.dark_spec_photo, command=self.store_dark_spectrum)
         self.btn_store_dark_spec.place(x=299, y=115)
-        # Show now button
-        '''
-        self.btn_show_spec_now = tk.Button(self.frame_spec, text="Show now", command=self.show_spec_now)
-        self.btn_show_spec_now.place(x=350, y=115)
-        '''
         # Canvas to draw currently measured spectrum on
         self.figure_spectrum = figure.Figure((4.55, 3), dpi=100)
         self.axes_spectrum = self.figure_spectrum.add_subplot()
