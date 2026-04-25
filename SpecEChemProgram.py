@@ -41,7 +41,6 @@ import tkinter.filedialog as filedialog
 # Import numpy, for math
 import numpy as np
 # and matplotlib, for plotting
-import matplotlib.pyplot as plt
 import matplotlib.figure as figure
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
