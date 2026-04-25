@@ -342,9 +342,6 @@ class MyWindow:
                 if (hasattr(self, "thread_draw_pstat")):
                     self.should_draw_pstat = False
                     self.thread_draw_pstat.join()
-                if (hasattr(self, "thread_draw_spec")):
-                    self.should_draw_spec = False
-                    self.thread_draw_spec.join()
                 if (hasattr(self, "thread_pstat_labels")):
                     self.should_update_pstat_labels = False
                     self.thread_pstat_labels.join()
@@ -357,13 +354,39 @@ class MyWindow:
             if (hasattr(self, "thread_draw_pstat")):
                 self.should_draw_pstat = False
                 self.thread_draw_pstat.join()
-            if (hasattr(self, "thread_draw_spec")):
-                self.should_draw_spec = False
-                self.thread_draw_spec.join()
             if (hasattr(self, "thread_pstat_labels")):
                 self.should_update_pstat_labels = False
                 self.thread_pstat_labels.join()
             self.root.destroy()
+
+    # update all labels
+    def gui_update(self):
+        # expt running & cycle label
+        if (self.running):
+            # if we don't have a first pstat point yet, we're still at cycle 0
+            if (hasattr(self, "most_recent_pstat_pt")):
+                now_cycle = self.most_recent_pstat_pt[8]
+            else:
+                now_cycle = 0
+            # using current_expt_max_cycles shouldn't be a race condition as long as you only set
+            # running = True AFTER setting current_expt_max_cycles for each new expt run
+            self.lbl_running.configure(text=f"Running: Cycle {now_cycle}/{self.current_expt_max_cycles}", fg="green")
+        else:
+            self.lbl_running.configure(text="not running", fg="red")
+
+        # Updates that only happen if spectrometer is connected (empty right now)
+
+        # Updates that only happen if pstat is connected
+        if (self.has_potentiostat == True):
+            # cell on/off label
+            if (self.potentiostat.cell() == tkp.CELLSTATE.CELL_ON):
+                self.lbl_cell_state.configure(text="Cell On", fg="green")
+            else:
+                self.lbl_cell_state.configure(text="Cell Off", fg="red")
+            # voltage/current labels
+
+        # loop GUI update
+        self.root.after(100, self.gui_update)
 
     # Open a dialogue box to change the experiment name
     def edit_exp_name(self):
@@ -457,16 +480,73 @@ class MyWindow:
             self.dark_spec = np.zeros((len(self.wavelengths)))
 
             # Finally, start drawing the current spectrum the instrument records on the canvas on repeat
-            self.should_draw_spec = True
-            self.thread_draw_spec = threading.Thread(target=self.draw_spec)
-            self.thread_draw_spec.start()
+            self.draw_first_spec()
         except sb.spectrometers.SeaBreezeError as e:
             # If we can't get a spectrometer
             self.spectrometer = None
             mbox.showwarning("Failed to connect to OceanOptics Spectrometer", e)
     
+    # draw the first spectrum, that will later be modified by repeat calls to draw_spec
+    def draw_first_spec(self):
+        now_intensities = self.spectrometer.intensities(self.enable_dark_correction, self.enable_nonlinearity_correction)
+        
+        # first spectrum is always just raw intensity
+        self.axes_spectrum.clear()
+        # disable autoscale
+        self.axes_spectrum.autoscale(enable=False)
+        # plot the raw intensities
+        self.line2d_spec, = self.axes_spectrum.plot(self.wavelengths, now_intensities, color="blue")
+        # plot a "max intensity" line at 170,000 intensity
+        self.line2d_spec_int_max, = self.axes_spectrum.plot([0, 3000], [170000, 170000], "--", color="red")
+        # set plot labels, etc.
+        self.axes_spectrum.set_xlabel("Wavelength (nm)")
+        self.axes_spectrum.set_ylabel("Intensity (a.u.)")
+        self.axes_spectrum.set_xlim(self.wavelengths[0], self.wavelengths[-1])
+        self.axes_spectrum.set_ylim(0, 180000)
+        self.axes_spectrum.grid()
+        # finally execute the draw call
+        self.canv_spectrum.draw()
+        # begin the looping draw
+        self.root.after(1000, self.draw_spec)
+
     # Draw command, to draw the most recent spectrum
-    # draw_time = time between draw calls
+    def draw_spec(self):
+        if (self.has_spectrometer):
+            now_intensities = self.spectrometer.intensities(self.enable_dark_correction, self.enable_nonlinearity_correction)
+            intensity_type = self.spec_intensity_type.get()
+
+            if (intensity_type == "Raw Int."):
+                # update line data
+                self.line2d_spec.set_ydata(now_intensities)
+                # set max int. line visible if not visible
+                self.line2d_spec_int_max.set_visible(True)
+                # set y-scale
+                self.axes_spectrum.set_ylim(0, 180000)
+            elif (intensity_type == "Raw Int. - Ref" and self.has_reference_spec):
+                # update line data
+                calc_intensities = now_intensities - self.reference_spec
+                self.line2d_spec.set_ydata(calc_intensities)
+                self.line2d_spec_int_max.set_visible(False)
+                # autoscale the y
+                self.axes_spectrum.autoscale_view(scalex=False, scaley=True)
+            elif (intensity_type == "%T or %R" and self.has_reference_spec):
+                calc_intensities = (now_intensities - self.dark_spec) / (self.reference_spec - self.dark_spec)
+                self.line2d_spec.set_ydata(calc_intensities)
+                self.line2d_spec_int_max.set_visible(False)
+                # autoscale the y
+                self.axes_spectrum.autoscale_view(scalex=False, scaley=True)
+            elif (intensity_type == "Abs" and self.has_reference_spec):
+                calc_T = (now_intensities - self.dark_spec) / (self.reference_spec - self.dark_spec)
+                calc_intensities = np.log10(calc_T)
+                self.line2d_spec.set_ydata(calc_intensities)
+                self.line2d_spec_int_max.set_visible(False)
+                # autoscale the y
+                self.axes_spectrum.autoscale_view(scalex=False, scaley=True)
+            self.canv_spectrum.draw_idle()
+            self.canv_spectrum.flush_events()
+        # loop the draw call
+        self.root.after(1000, self.draw_spec)
+    ''' # Legacy code, TBR
     def draw_spec(self):
         while (self.should_draw_spec):
 
@@ -524,6 +604,7 @@ class MyWindow:
             
             # sleep until next run
             time.sleep(self.spec_draw_time)
+    '''
 
     # Sets integration time based off the value user has in the box for it
     def set_integ_time(self):
@@ -886,7 +967,7 @@ class MyWindow:
         # thread where the potentiostat curve is drawn
         self.thread_draw_pstat = threading.Thread(target=self.plot_pstat_curve)
         # Turn on the cell
-        self.lbl_cell_state.configure(text="Cell On", fg="green")
+        #self.lbl_cell_state.configure(text="Cell On", fg="green") TBR
         self.potentiostat.set_cell(True)
         # Start running the data acquisition curve
         self.acq_curve.run(True)
@@ -930,14 +1011,14 @@ class MyWindow:
                 self.last_file_flush = elapsed_time
 
             # update # of cycles label
-            self.lbl_running.configure(text=f"Running: Cycle {now_cycle}/{self.current_expt_max_cycles}", fg="green")
+            #self.lbl_running.configure(text=f"Running: Cycle {now_cycle}/{self.current_expt_max_cycles}", fg="green") TBR
             # pause til next step
             time.sleep(self.num_freq_s)
         
         # Finish the measurement
         # Turn off the cell
         self.potentiostat.set_cell(False)
-        self.lbl_cell_state.configure(text="Cell Off", fg="red")
+        #self.lbl_cell_state.configure(text="Cell Off", fg="red") TBR
         # Close the file handle and flush to disk
         self.outfile.close()
         # stop drawing pstat curve
@@ -965,7 +1046,7 @@ class MyWindow:
             # Save raw pstat data filename for zipping later 
             self.pstat_data_filename = pstat_data_filename
         # update GUI
-        self.lbl_running.configure(text="not running", fg="red")
+        #self.lbl_running.configure(text="not running", fg="red") TBR
         self.running = False
         # try to send emails out to notify experiment is complete if the emails are there and expt wasn't ended early on purpose
         if (self.emails != "" and self.was_aborted == False):
@@ -1125,5 +1206,7 @@ class MyWindow:
 
 # Initialize a Window object        
 window = MyWindow()
+# Schedule GUI update function
+window.root.after(100, window.gui_update)
 # Run its main GUI loop
 window.root.mainloop()
