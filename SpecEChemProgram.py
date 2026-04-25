@@ -940,7 +940,7 @@ class MyWindow:
         self.acq_curve.set_stop_i_max(True, 5) # automatically stop if current exceeds 5 A
 
         ### Next - show that the exp is running on the GUI
-        self.lbl_running.configure(text=f"Running: Cycle 0/{self.current_expt_max_cycles}", fg="green")
+        # self.lbl_running.configure(text=f"Running: Cycle 0/{self.current_expt_max_cycles}", fg="green") TBR
 
         ### Next - Actually begin the run!
         self.was_aborted = False # flag for if expt was forcibly ended prematurely
