@@ -13,11 +13,11 @@
 TODO:
 - Update email sending to include whether or not expt finished completely
 - plot most recent pstat cycle in a different color to make it easier to see
-- fix the bounds of each plotting window
-- Change the threading model to avoid worker threads pushing GUI updates (change pstat labels, plotting)
+- fix the bounds of each plotting window, and only change it when user asks
+- Change the threading model to avoid worker threads pushing GUI updates (plotting)
 - Break up code into multiple files to increase readability
 
-- Fix bug preventing running too long experiments.
+- Fix bug preventing running too long experiments (sequence wizard type thing)
 
 - Test everything flushes every 30 s correctly
 
@@ -337,9 +337,6 @@ class MyWindow:
                 if (hasattr(self, "thread_draw_pstat")):
                     self.should_draw_pstat = False
                     self.thread_draw_pstat.join()
-                if (hasattr(self, "thread_pstat_labels")):
-                    self.should_update_pstat_labels = False
-                    self.thread_pstat_labels.join()
                 # then close window
                 self.root.destroy()
             # otherwise, do nothing
@@ -349,9 +346,6 @@ class MyWindow:
             if (hasattr(self, "thread_draw_pstat")):
                 self.should_draw_pstat = False
                 self.thread_draw_pstat.join()
-            if (hasattr(self, "thread_pstat_labels")):
-                self.should_update_pstat_labels = False
-                self.thread_pstat_labels.join()
             self.root.destroy()
 
     # update all labels
@@ -379,9 +373,21 @@ class MyWindow:
             else:
                 self.lbl_cell_state.configure(text="Cell Off", fg="red")
             # voltage/current labels
+            if (self.running): 
+                # calling "measure" directly may autorange the pstat which we don't want during a measurement
+                # so while we are running, we just use the most recent pstat data point to update labels
+                potential = self.most_recent_pstat_pt[2]
+                current = self.most_recent_pstat_pt[4]
+            else:
+                potential = self.potentiostat.measure_v()
+                current = self.potentiostat.measure_i()
+            
+            # update labels
+            self.lbl_pstat_potential.configure(text=f"E: {potential:.3f}V")
+            self.lbl_pstat_current.configure(text=f"i: {current:.3e} A")
 
         # loop GUI update
-        self.root.after(100, self.gui_update)
+        self.root.after(200, self.gui_update)
 
     # Open a dialogue box to change the experiment name
     def edit_exp_name(self):
@@ -416,14 +422,16 @@ class MyWindow:
             model = self.potentiostat.model_no()
             print(f"Serial No.: {self.potentiostat.serial_no()}")
             self.has_potentiostat = True
-            # TODO: See about changing current convention (which direction is positive?) and auto ranging current/voltage
+            # TODO: See about changing current convention (which direction is positive?)
             self.lbl_pstat_connected.configure(text="connected", fg="green")
             self.lbl_pstat_model.configure(text=f"Model: {model}")
             # Begin updating the labels showing voltage and current
             self.should_update_pstat_labels = True
-            self.thread_pstat_labels = threading.Thread(target=self.update_pstat_readinglabels)
-            self.thread_pstat_labels.start()
+            # Legacy code - TBR
+            # self.thread_pstat_labels = threading.Thread(target=self.update_pstat_readinglabels)
+            # self.thread_pstat_labels.start()
     
+    ''' Legacy Code - TBR
     def update_pstat_readinglabels(self):
         # Loop
         while self.should_update_pstat_labels:
@@ -445,7 +453,7 @@ class MyWindow:
                 break # stop execution of this thread if pstat no longer connected
 
             time.sleep(0.5) # sleep for half a second
-
+    '''
     # Attempt to connect to an OceanOptics spectrometer via USB
     def connect_spectrometer(self):
         try:
