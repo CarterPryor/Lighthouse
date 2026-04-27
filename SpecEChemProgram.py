@@ -12,6 +12,7 @@
 '''
 TODO:
 - Update email sending to include whether or not expt finished completely
+- Warning if user pstat settings are over max number of data points
 - plot most recent pstat cycle in a different color to make it easier to see
 - fix the bounds of each plotting window, and only change it when user asks
 - Change the threading model to avoid worker threads pushing GUI updates (plotting)
@@ -384,7 +385,7 @@ class MyWindow:
             
             # update labels
             self.lbl_pstat_potential.configure(text=f"E: {potential:.3f}V")
-            self.lbl_pstat_current.configure(text=f"i: {current:.3e} A")
+            self.lbl_pstat_current.configure(text=f"i: {current:.3E} A") # the .3E = 3 decimal places, in scientific notation
 
         # loop GUI update
         self.root.after(200, self.gui_update)
