@@ -277,11 +277,16 @@ class MyWindow:
         self.figure_spectrum = figure.Figure((4.55, 3), dpi=100)
         self.axes_spectrum = self.figure_spectrum.add_subplot()
         self.canv_spectrum = FigureCanvasTkAgg(self.figure_spectrum, self.frame_spec)
+        # right-click context menu for the spectrum
+        self.menu_canv_spectrum = tk.Menu(self.canv_spectrum.get_tk_widget(), tearoff=0)
+        self.menu_canv_spectrum.add_command(label="Set y-min")
+        self.menu_canv_spectrum.add_command(label="Set y-max")
+        self.canv_spectrum.get_tk_widget().bind("<Button-3>", self.canv_spectrum_popup)
         self.canv_spectrum.get_tk_widget().place(x=6, y=160)
 
         # variable that stores if we should be repeatedly looping drawing the spectrum
         self.should_draw_spec = False
-        self.spec_draw_time = 5 # seconds, time between draws
+        # self.spec_draw_time = 5 # seconds, time between draws TBR
 
         # Label and box to input how often we collect spectra
         self.lbl_collect = tk.Label(self.frame_spec, text="Collect every:")
@@ -408,6 +413,18 @@ class MyWindow:
     def choose_out_dir(self):
         self.save_dir = filedialog.askdirectory(initialdir=self.save_dir)
         self.lbl_filename.configure(text=f"Save to: {self.save_dir}")
+
+    def canv_spectrum_popup(self, event):
+        try:
+            self.menu_canv_spectrum.tk_popup(event.x_root, event.y_root)
+        finally:
+            self.menu_canv_spectrum.grab_release()
+    
+    def canv_spectrum_set_ymin(self):
+        pass
+
+    def canv_spectrum_set_ymax(self):
+        pass
 
     # Attempt to access the Gamry Potentiostat
     def connect_pstat(self):
