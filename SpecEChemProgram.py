@@ -421,10 +421,20 @@ class MyWindow:
             self.menu_canv_spectrum.grab_release()
     
     def canv_spectrum_set_ymin(self):
-        pass
+        # do nothing if we aren't plotting
+        if (self.has_spectrometer == False):
+            return
+        # ask new ymin
+
+        # set ylim
+        
+        # redraw
+        
 
     def canv_spectrum_set_ymax(self):
-        pass
+        # do nothing if we aren't plotting
+        if (self.has_spectrometer == False):
+            return
 
     # Attempt to access the Gamry Potentiostat
     def connect_pstat(self):
