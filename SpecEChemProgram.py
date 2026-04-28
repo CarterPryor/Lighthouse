@@ -426,8 +426,8 @@ class MyWindow:
             return
         # ask new ymin
 
-        # set ylim
-        
+        # set y-limits on matplotlib Figure
+
         # redraw
         
 
@@ -756,22 +756,44 @@ class MyWindow:
             try:
                 potentials = data["vf"]
                 currents = data["im"]
+                cycles = data["cycle"]
             except IndexError:
                 print("Index error accessing CV data for plotting")
                 continue
             
-            # clear the old plot
-            self.axes_cv.clear()
-            # plot the data
+            # down sample as needed
             if (num_pts < 10000):
                 # full # of points if less than 10k
-                self.axes_cv.plot(potentials, currents, color="blue")
+                plot_potentials = potentials
+                plot_currents = currents
+                plot_cycles = cycles
             elif (num_pts  < 100000):
                 # every 5th point if btwn 10k-100k pts
-                self.axes_cv.plot(potentials[::5], currents[::5], color="blue")
+                plot_potentials = potentials[::5]
+                plot_currents = currents[::5]
+                plot_cycles = cycles[::5]
             else:
                 # if we have > 100,000 pts, only plot every 10th point to save on memory
-                self.axes_cv.plot(potentials[::10], currents[::10], color="blue")
+                plot_potentials = potentials[::10]
+                plot_currents = currents[::10]
+                plot_cycles = cycles[::10]
+
+            # clear the old plot
+            self.axes_cv.clear()
+            # find the first position of the current cycle
+            now_cycle = now_pstat_pt[8]
+            now_cycle_index = np.argmax(plot_cycles == now_cycle) # this returns 0 if the first index is 0 or 0 on a fail to find
+            if (now_cycle_index == 0):
+                # in the "0 index case" - we have either only the first cycle, 
+                # or some weird error where we couldn't find the current cycle in our data here
+                # regardless, just plot everything as-is
+                self.axes_cv.plot(plot_potentials, plot_currents, color="blue")
+            else: # if we have > 1 cycle & we can find an index, sketch current cycle in different color
+                # plot everything up to where the current cycle starts in blue
+                self.axes_cv.plot(plot_potentials[:now_cycle_index], plot_currents[:now_cycle_index], color="blue")
+                # plot everything after in red
+                self.axes_cv.plot(plot_potentials[now_cycle_index:], plot_currents[now_cycle_index:], color="red")
+            
             # label axes
             self.axes_cv.set_xlabel("WE Potential (V)")
             self.axes_cv.set_ylabel("Current (A)")
@@ -779,9 +801,9 @@ class MyWindow:
             self.axes_cv.grid()
             # draw the updates
             self.canv_cv.draw()
-            # if the time is past the first minute, plot only every 1 minute
-            if (elapsed_time > 60):
-                time.sleep(60)
+            # if the time is past the first minute, plot only every 30 s
+            if (elapsed_time > 30):
+                time.sleep(30)
             else:
                 time.sleep(3)
 
