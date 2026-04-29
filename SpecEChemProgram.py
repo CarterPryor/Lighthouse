@@ -393,7 +393,7 @@ class MyWindow:
             self.lbl_pstat_current.configure(text=f"i: {current:.3E} A") # the .3E = 3 decimal places, in scientific notation
 
         # loop GUI update
-        self.root.after(200, self.gui_update)
+        self.root.after(500, self.gui_update)
 
     # Open a dialogue box to change the experiment name
     def edit_exp_name(self):
