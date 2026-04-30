@@ -1,6 +1,6 @@
 # Graphical program for collecting electrochemical and spectral data simultaneously using a Gamry potentiostat and OceanOptics spectrometer
 # Originally written by Carter Pryor (carter_pryor@outlook.com) for Graham group at UKY
-# Last modified 2026-04-27
+# Last modified 2026-04-29
 
 # Recommended sample period: >=0.1 s according to Gamry docs
 
@@ -62,6 +62,18 @@ import seabreeze.spectrometers
 
 # Gamry's toolkitpy library for controlling the Gamry pstat directly from Python
 import toolkitpy as tkp
+
+def perf_sleep_until(final_time: int):
+    while True:
+        now = time.perf_counter_ns()
+        dt = final_time - now
+        # if we are at time or past it, stop sleeping
+        if (dt <= 0):
+            break
+        # if we are more than 20 ms away from time, sleep for 15 ms
+        elif (dt > 0.020*(1E9)):
+            time.sleep(0.015)
+        # otherwise, just continue the loop
 
 # A window class, which holds all the information for the our active experiment
 class MyWindow:
@@ -1026,7 +1038,12 @@ class MyWindow:
         self.acq_curve.run(True)
         self.thread_draw_pstat.start()
 
+        # # of data points counter
+        i = 0
+        # loop start time
+        loop_start_time = time.perf_counter_ns()
         while self.acq_curve.running():
+            i += 1
             # Grab the most recent data point from PStat, including time, V, i, etc.
             now_pstat_pt = self.acq_curve.last_data_point()
             self.most_recent_pstat_pt = now_pstat_pt
@@ -1065,8 +1082,15 @@ class MyWindow:
 
             # update # of cycles label
             #self.lbl_running.configure(text=f"Running: Cycle {now_cycle}/{self.current_expt_max_cycles}", fg="green") TBR
-            # pause til next step
-            time.sleep(self.num_freq_s)
+            # calculate the time when we need to take the next data point
+            next_pt_time = np.floor(loop_start_time + i * self.num_freq_s * (1E9))
+            perf_sleep_until(next_pt_time)
+            # loop_end_time = time.perf_counter_ns()
+            # dt_s = (loop_end_time - loop_start_time) / (10**9)
+            # sleep_time = self.num_freq_s - dt_s
+            # # pause til next step
+            # if (sleep_time > 0.015):
+            #     time.sleep(self.num_freq_s)
         
         # Finish the measurement
         # Turn off the cell
