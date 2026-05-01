@@ -972,7 +972,7 @@ class MyWindow:
             self.outfile.write(f"Vertex Potential 1 (V): {self.vertex_pot1_text.get()}\n")
             self.outfile.write(f"Vertex Potential 2 (V): {self.vertex_pot2_text.get()}\n")
             self.outfile.write(f"Scan Rate (V/s): {self.scan_rate_text.get()}\n")
-            self.outfile.write(f"Step Size (V): {self.step_size_text.get()}\n")
+            self.outfile.write(f"Sample Time (s): {self.step_size_text.get()}\n")
             self.outfile.write(f"Max # Cycles: {self.num_cycles_text.get()}\n")
         # include spectrometer info if we are using it
         self.outfile.write(f"Use Spectrometer?: {self.use_spec.get()}\n")
