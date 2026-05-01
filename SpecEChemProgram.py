@@ -68,12 +68,18 @@ def perf_sleep_until(final_time: int):
         now = time.perf_counter_ns()
         dt = final_time - now
         # if we are at time or past it, stop sleeping
-        if (dt <= 0):
+        if (dt <= 0):           
             break
-        # if we are more than 20 ms away from time, sleep for 15 ms
-        elif (dt > 0.020*(1E9)):
+        # if we are more than 200 ms away from time, sleep for 80% of remaining time
+        elif (dt > 0.200*(1E9)):
+            time.sleep(dt * 0.8 * (1E-9))
+        # if we are more than 50 ms away from time, sleep for 15 ms
+        elif (dt > 0.050*(1E9)):
             time.sleep(0.015)
         # otherwise, just continue the loop
+        else:
+            # yield to other processes; this can reduce CPU jitter and make this more accurate
+            time.sleep(0)
 
 # A window class, which holds all the information for the our active experiment
 class MyWindow:
@@ -1085,6 +1091,7 @@ class MyWindow:
             # calculate the time when we need to take the next data point
             next_pt_time = np.floor(loop_start_time + i * self.num_freq_s * (1E9))
             perf_sleep_until(next_pt_time)
+            # Below is legacy code - TBR
             # loop_end_time = time.perf_counter_ns()
             # dt_s = (loop_end_time - loop_start_time) / (10**9)
             # sleep_time = self.num_freq_s - dt_s
