@@ -1379,6 +1379,8 @@ class MyWindow:
             del self.acq_curve
             del self.potentiostat
 
+# log exceptions in case of floating point going over/under
+np.seterr(over="log", under="log")
 # Basic configure the logger
 # get current time for file name
 t_now = datetime.datetime.now()
