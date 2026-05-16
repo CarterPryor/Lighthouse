@@ -33,6 +33,9 @@ import datetime
 import time
 # And for multithreading
 import threading
+# and for logging
+import logging
+import pathlib
 
 # Import Python's built-in GUI library
 import tkinter as tk
@@ -63,6 +66,9 @@ import seabreeze.spectrometers
 
 # Gamry's toolkitpy library for controlling the Gamry pstat directly from Python
 import toolkitpy as tkp
+
+# initialize logger
+logger = logging.getLogger(__name__)
 
 def perf_sleep_until(final_time: int):
     while True:
@@ -375,6 +381,7 @@ class MyWindow:
 
     # update all labels
     def gui_update(self):
+        logger.debug("GUI Update loop top")
         # expt running & cycle label
         if (self.running):
             # if we don't have a first pstat point yet, we're still at cycle 0
@@ -384,8 +391,10 @@ class MyWindow:
                 now_cycle = 0
             # using current_expt_max_cycles shouldn't be a race condition as long as you only set
             # running = True AFTER setting current_expt_max_cycles for each new expt run
+            logger.debug(f"Updating running label to cycle: {now_cycle}")
             self.lbl_running.configure(text=f"Running: Cycle {now_cycle}/{self.current_expt_max_cycles}", fg="green")
         else:
+            logger.debug("Updating running label to not running")
             self.lbl_running.configure(text="not running", fg="red")
 
         # Updates that only happen if spectrometer is connected (empty right now)
@@ -393,25 +402,31 @@ class MyWindow:
         # Updates that only happen if pstat is connected
         if (self.has_potentiostat == True):
             # cell on/off label
+            logger.debug("Updating cell state label")
             if (self.potentiostat.cell() == tkp.CELLSTATE.CELL_ON):
                 self.lbl_cell_state.configure(text="Cell On", fg="green")
             else:
                 self.lbl_cell_state.configure(text="Cell Off", fg="red")
             # voltage/current labels
             if (self.running): 
+                logger.debug("Getting E/i from experiment most recent pt")
                 # calling "measure" directly may autorange the pstat which we don't want during a measurement
                 # so while we are running, we just use the most recent pstat data point to update labels
                 potential = self.most_recent_pstat_pt[2]
                 current = self.most_recent_pstat_pt[4]
             else:
+                logger.debug("Getting E/i from measure_x() func")
                 potential = self.potentiostat.measure_v()
                 current = self.potentiostat.measure_i()
             
+            logger.debug("Updating pstat potential & current labels")
             # update labels
             self.lbl_pstat_potential.configure(text=f"E: {potential:.3f}V")
             self.lbl_pstat_current.configure(text=f"i: {current:.3E} A") # the .3E = 3 decimal places, in scientific notation
+            logger.debug("GUI Update bottom")
 
         # loop GUI update
+        logger.debug("GUI Update loop bottom")
         self.root.after(500, self.gui_update)
 
     # Open a dialogue box to change the experiment name
@@ -458,16 +473,20 @@ class MyWindow:
     # Attempt to access the Gamry Potentiostat
     def connect_pstat(self):
         # Get list of connected Gamry devices
+        logger.info("Attempting to connect to pstat...")
         device_list = tkp.enum_sections()
         if (len(device_list) == 0): # List is empty, no attatched pstat
+            logger.warning("No Gamry Potentiostat found")
             mbox.showwarning("Warning", "No connected Gamry Potentiostats found!")
         else:
             # We have a pstat, try to connect to first one
+            logger.info("At least on PStat available, trying to connect...")
             self.potentiostat = tkp.Pstat(device_list[0])
             # Open connection to the Pstat
             self.potentiostat.open() 
             model = self.potentiostat.model_no()
             print(f"Serial No.: {self.potentiostat.serial_no()}")
+            logger.info(f"Connected pstat: Serial No. {self.potentiostat.serial_no()}")
             self.has_potentiostat = True
             # TODO: See about changing current convention (which direction is positive?)
             self.lbl_pstat_connected.configure(text="connected", fg="green")
@@ -503,12 +522,16 @@ class MyWindow:
     '''
     # Attempt to connect to an OceanOptics spectrometer via USB
     def connect_spectrometer(self):
+        logger.info("Attempting to connect to OceanOptics Spectrometer...")
         try:
+            logger.info("At least one spectrometer available, trying to connect...")
             # Try to grab the first spectrometer available
             self.spectrometer = sb.spectrometers.Spectrometer.from_first_available()
+            logger.info("Spectrometer connected successfully")
             # If we get one, update the text to show we are connected and what the spectrometer model label is
             self.lbl_spec_connected.configure(text="Connected", fg="green")
             model = self.spectrometer.model
+            logger.info(f"Spectrometer model: {model}")
             self.lbl_spec_model.configure(text=f"Model: {model}")
             
             self.has_spectrometer = True
@@ -532,12 +555,15 @@ class MyWindow:
             # Finally, start drawing the current spectrum the instrument records on the canvas on repeat
             self.draw_first_spec()
         except sb.spectrometers.SeaBreezeError as e:
+            logger.warning("No available OceanOptics Spectrometer found")
+            logger.warning(e)
             # If we can't get a spectrometer
             self.spectrometer = None
             mbox.showwarning("Failed to connect to OceanOptics Spectrometer", e)
     
     # draw the first spectrum, that will later be modified by repeat calls to draw_spec
     def draw_first_spec(self):
+        logger.info("Starting drawing first spectrum")
         now_intensities = self.spectrometer.intensities(self.enable_dark_correction, self.enable_nonlinearity_correction)
         
         # first spectrum is always just raw intensity
@@ -545,6 +571,7 @@ class MyWindow:
         # disable autoscale
         self.axes_spectrum.autoscale(enable=False)
         # plot the raw intensities
+        logger.debug("draw_first_spec: calling plot()")
         self.line2d_spec, = self.axes_spectrum.plot(self.wavelengths, now_intensities, color="blue")
         # plot a "max intensity" line at 170,000 intensity
         self.line2d_spec_int_max, = self.axes_spectrum.plot([0, 3000], [170000, 170000], "--", color="red")
@@ -555,17 +582,20 @@ class MyWindow:
         self.axes_spectrum.set_ylim(0, 180000)
         self.axes_spectrum.grid()
         # finally execute the draw call
+        logger.debug("draw_first_spec: calling draw()")
         self.canv_spectrum.draw()
         # begin the looping draw
         self.root.after(1000, self.draw_spec)
 
     # Draw command, to draw the most recent spectrum
     def draw_spec(self):
+        logger.debug("draw_spec: Beginning of call")
         if (self.has_spectrometer):
             now_intensities = self.spectrometer.intensities(self.enable_dark_correction, self.enable_nonlinearity_correction)
             intensity_type = self.spec_intensity_type.get()
 
             if (intensity_type == "Raw Int."):
+                logger.debug("Updating y-data for raw intensity")
                 # update line data
                 self.line2d_spec.set_ydata(now_intensities)
                 # set max int. line visible if not visible
@@ -573,6 +603,7 @@ class MyWindow:
                 # set y-scale
                 self.axes_spectrum.set_ylim(0, 180000)
             elif (intensity_type == "Raw Int. - Ref" and self.has_reference_spec):
+                logger.debug("Updating y-data for raw - ref")
                 # update line data
                 calc_intensities = now_intensities - self.reference_spec
                 self.line2d_spec.set_ydata(calc_intensities)
@@ -580,21 +611,26 @@ class MyWindow:
                 # autoscale the y
                 self.axes_spectrum.autoscale_view(scalex=False, scaley=True)
             elif (intensity_type == "%T or %R" and self.has_reference_spec):
+                logger.debug("Updating y-data for %T/%R")
                 calc_intensities = (now_intensities - self.dark_spec) / (self.reference_spec - self.dark_spec)
                 self.line2d_spec.set_ydata(calc_intensities)
                 self.line2d_spec_int_max.set_visible(False)
                 # autoscale the y
                 self.axes_spectrum.autoscale_view(scalex=False, scaley=True)
             elif (intensity_type == "Abs" and self.has_reference_spec):
+                logger.debug("Updating y-data for Abs")
                 calc_T = (now_intensities - self.dark_spec) / (self.reference_spec - self.dark_spec)
                 calc_intensities = np.log10(calc_T)
                 self.line2d_spec.set_ydata(calc_intensities)
                 self.line2d_spec_int_max.set_visible(False)
                 # autoscale the y
                 self.axes_spectrum.autoscale_view(scalex=False, scaley=True)
+            logger.debug("draw_spec: calling draw_idle()")
             self.canv_spectrum.draw_idle()
+            logger.debug("draw_spec: calling flush_events()")
             self.canv_spectrum.flush_events()
         # loop the draw call
+        logger.debug("draw_spec: End of call")
         self.root.after(1000, self.draw_spec)
     ''' # Legacy code, TBR
     def draw_spec(self):
@@ -678,20 +714,27 @@ class MyWindow:
         if (self.has_spectrometer):
             self.reference_spec = self.spectrometer.intensities(self.enable_dark_correction, self.enable_nonlinearity_correction)
             self.has_reference_spec = True
+            logger.info("Stored reference spectrum successfully")
+            print("Stored reference spectrum successfully")
     
     # Stores dark spectrum based on current spectrometer input
     # Dark spectrum is subtracted from what we actually measure
     def store_dark_spectrum(self):
         if (self.has_spectrometer):
             self.dark_spec = self.spectrometer.intensities(self.enable_dark_correction, self.enable_nonlinearity_correction)
+            logger.info("Stored dark spectrum successfully")
+            print("Stored dark spectrum successfully")
 
     # If a spectrometer is attached, collect a spectrum and save right away
     def collect_spec_now(self):
+        logger.info("Trying to collect spectrum now...")
         if (self.has_spectrometer == False):
+            logger.warning("No spectrometer connected to collect from!")
             return
         
         # Make sure we have what we need to calc. requested intensity type
         if (self.spec_intensity_type.get() != "Raw Int." and self.has_reference_spec == False):
+            logger.warning("No reference spectrum saved, but is needed to calculate intensity type")
             mbox.showwarning("Error saving file", "Chosen intensity type requires a reference spectrum")
             return
 
@@ -715,6 +758,7 @@ class MyWindow:
         # add the folder name
         filename = f"{self.save_dir}/{filename}"
         # Try and save the file
+        logger.info("Trying to open file to write current spectrum to")
         with open(filename, "w") as outfile:
             # First write the header
             outfile.write("Ocean Optics spectrometer spectrum generated by Lighthouse\n")
@@ -753,19 +797,24 @@ class MyWindow:
                     outfile.write(f"{self.reference_spec[i]},")
                 # Finally write the dark spectrum and end the line
                 outfile.write(f"{self.dark_spec[i]}\n")
+        logger.info("Successfully wrote file")
 
     # Function to plot the pstat data from currently running experiment
     def plot_pstat_curve(self):
         # pause very briefly to allow for initial data collection
+        logger.info("Starting pstat curve plotting")
         time.sleep(0.3)
         while (self.should_draw_pstat):
+            logger.debug("plot_pstat_curve: Top of pstat draw loop")
             now_pstat_pt = self.acq_curve.last_data_point()
             num_pts = self.acq_curve.count()
             # if there aren't enough points, skip plotting for now
             if (num_pts < 2 or now_pstat_pt is None):
+                logger.debug("Not enough to pts to plot")
                 continue
             
             # get all the currently acquired data
+            logger.debug("plot_pstat_curve: calling acq_data()")
             data = self.acq_curve.acq_data()
             # get the elapsed time (to determine when to plot)
             elapsed_time = now_pstat_pt[1]
@@ -783,21 +832,25 @@ class MyWindow:
             # down sample as needed
             if (num_pts < 10000):
                 # full # of points if less than 10k
+                logger.debug("plot_pstat_curve: Plotting all points in pstat curve")
                 plot_potentials = potentials
                 plot_currents = currents
                 plot_cycles = cycles
             elif (num_pts  < 100000):
                 # every 5th point if btwn 10k-100k pts
+                logger.debug("plot_pstat_curve: Plotting every 5th point in pstat curve")
                 plot_potentials = potentials[::5]
                 plot_currents = currents[::5]
                 plot_cycles = cycles[::5]
             else:
                 # if we have > 100,000 pts, only plot every 10th point to save on memory
+                logger.debug("plot_pstat_curve: Plotting every 10th point in pstat curve")
                 plot_potentials = potentials[::10]
                 plot_currents = currents[::10]
                 plot_cycles = cycles[::10]
 
             # clear the old plot
+            logger.debug("plot_pstat_curve: calling clear()")
             self.axes_cv.clear()
             # find the first position of the current cycle
             now_cycle = now_pstat_pt[8]
@@ -806,11 +859,14 @@ class MyWindow:
                 # in the "0 index case" - we have either only the first cycle, 
                 # or some weird error where we couldn't find the current cycle in our data here
                 # regardless, just plot everything as-is
+                logger.debug("plot_pstat_curve: calling plot() for all cycles in blue")
                 self.axes_cv.plot(plot_potentials, plot_currents, color="blue")
             else: # if we have > 1 cycle & we can find an index, sketch current cycle in different color
                 # plot everything up to where the current cycle starts in blue
+                logger.debug("plot_pstat_curve: calling plot() for previous cycles in blue")
                 self.axes_cv.plot(plot_potentials[:now_cycle_index], plot_currents[:now_cycle_index], color="blue")
                 # plot everything after in red
+                logger.debug("plot_pstat_curve: calling plot() for current cycle in red")
                 self.axes_cv.plot(plot_potentials[now_cycle_index:], plot_currents[now_cycle_index:], color="red")
             
             # label axes
@@ -819,7 +875,9 @@ class MyWindow:
             # grid
             self.axes_cv.grid()
             # draw the updates
+            logger.debug("plot_pstat_curve: calling draw()")
             self.canv_cv.draw()
+            logger.debug("Bottom of pstat draw loop")
             # if the time is past the first minute, plot only every 30 s
             if (elapsed_time > 30):
                 time.sleep(30)
@@ -827,8 +885,10 @@ class MyWindow:
                 time.sleep(3)
 
     def start_measurement(self):
+        logger.info("Attempting to start measurement")
         # if already running, do nothing
         if (self.running):
+            logger.warning("Aborting: Already running a measurement")
             return
         ### First, check if experiment settings are valid
 
@@ -840,6 +900,7 @@ class MyWindow:
             cycles_num = int(self.num_cycles_text.get())
             sample_period = float(self.step_size_text.get())
         except ValueError:
+            logger.error("Aborting: One of the PStat parameters does not appear to be a valid number.")
             mbox.showwarning("Value Error", "One of the PStat parameters does not appear to be a valid number.")
             return
 
@@ -851,6 +912,7 @@ class MyWindow:
         try:
             collection_time_num = float(self.spec_freq_txt.get())
         except ValueError:
+            logger.error("Aborting: Could not convert contents of collection freq. box into a number")
             mbox.showwarning("Value Error", "Could not convert contents of collection frequency box into a number!")
             return
         # Convert collection time into ms for comparison
@@ -866,11 +928,13 @@ class MyWindow:
         
         # Finally verify that collection time is indeed bigger than integ time
         if (collection_time_ms <= integration_time_ms):
+            logger.error("Aborting: collection frequency is <= integration time")
             mbox.showwarning("Collection Frequency Error", "Minimum time between collecting spectra must be larger than integration time!")
             return
         
         ### Next - make sure we have what we need to calculate the requested intensity type
         if (self.spec_intensity_type.get() != "Raw Int." and (self.has_reference_spec == False)):
+            logger.error("Aborting: no reference spectrum and intensity type requires it.")
             mbox.showwarning("Error saving file", "Chosen intensity type requires a reference spectrum")
             return
         
@@ -899,9 +963,11 @@ class MyWindow:
         # Append directory
         filename = f"{self.save_dir}/{filename}"
         # Make sure the output file is opened correctly
+        logger.info(f"Trying to open main expt data file w/ name: {filename}")
         try:
             self.outfile = open(filename, mode="w")
         except OSError as e:
+            logger.error(f"Error opening file: {e.strerror}")
             mbox.showerror("Error opening file", e.strerror)
             return
         # save the filename to class for zipping later
@@ -914,6 +980,7 @@ class MyWindow:
             reference_filename = f"{self.experiment_name}_{now.isoformat()}_REFERENCE_SPECTRUM.csv"
             reference_filename = reference_filename.replace(":", "-")
             reference_filename = f"{self.save_dir}/{reference_filename}"
+            logger.info(f"Trying to write reference spectrum to disk @ filename: {reference_filename}")
             with open(reference_filename, "w") as reference_file:
                 reference_file.write("Ocean Optics spectrometer reference spectrum generated by Lighthouse\n")
                 reference_file.write(f"For experiment: {self.experiment_name}\n")
@@ -934,11 +1001,13 @@ class MyWindow:
                 reference_file.close()
                 # save reference filename for zipping later
                 self.reference_filename = reference_filename
+                logger.info("Succeeded in writing reference spectrum")
         
         # Try to write the dark spectrum
         dark_filename = f"{self.experiment_name}_{now.isoformat()}_DARK_SPECTRUM.csv"
         dark_filename = dark_filename.replace(":", "-")
         dark_filename = f"{self.save_dir}/{dark_filename}"
+        logger.info("Trying to write dark spectrum to disk...")
         with open(dark_filename, "w") as dark_file:
             dark_file.write("Ocean Optics spectrometer dark spectrum generated by Lighthouse\n")
             dark_file.write(f"For experiment: {self.experiment_name}\n")
@@ -958,7 +1027,9 @@ class MyWindow:
             dark_file.close()
             # save dark filename for zipping later
             self.dark_filename = dark_filename
+            logger.info("Succeeded in writing dark spectrum")
         
+        logger.info("Writing main data file header")
         ### Next - write the header for our main data file
         self.outfile.write("Spectroelectrochemistry data file generated by Lighthouse\n")
         self.outfile.write(f"For experiment: {self.experiment_name}\n")
@@ -998,13 +1069,16 @@ class MyWindow:
         # If you input a sample period that puts the # of points > ~260,000, then the signal creation
         # here will throw an error and the experiment won't run. 
         # For 200 cycles, scanning from +0 to +1 V, at 10 mV/s, this means the highest sample period you can have should be ~0.2s
+        logger.info("Attempting to set up pstat singal. May throw an error if # of pts would be too high")
         self.ramp_signal = self.potentiostat.signal_r_up_dn_new([v1_num, v1_num, v2_num, v2_num], 
                                                        [scanrate_num, scanrate_num, scanrate_num], 
                                                        [0, 0, 0], sample_period, cycles_num, tkp.PSTATMODE)
         
         # Set signal for potentiostat to this new signal
         self.potentiostat.set_signal_r_up_dn(self.ramp_signal)
+        logger.info("Attempting to initialize pstat signal")
         self.potentiostat.init_signal()
+        logger.info("Succeeded in initializing pstat signal")
         
         # Initialize the data collection curve
         # the second number here is the max number of data points in the buffer
@@ -1014,6 +1088,7 @@ class MyWindow:
 
         # The support people at Gamry tell me that the max range is somewhere a little above 5 million points
         # With 4 million points, scanning a 1V potential window with a 1 mV step gives us a max of ~2000 cycles
+        logger.info("Attempting to initialize pstat acq curve")
         self.acq_curve = tkp.RcvCurve(self.potentiostat, 4000000)
         self.acq_curve.set_stop_i_max(True, 5) # automatically stop if current exceeds 5 A
 
@@ -1026,11 +1101,13 @@ class MyWindow:
         self.calc_run_time = np.abs(v2_num-v1_num) / scanrate_num * 2 * cycles_num
         print(f"Estimated experiment time: {self.calc_run_time/60:.2f} minutes.")
         self.num_freq_s = collection_time_ms/1000
+        logger.info("Constructing measurement thread")
         self.thread_measurement = threading.Thread(target=self.run_measurement)
         self.thread_measurement.start()
 
     # The actual looping action of measuring
     def run_measurement(self):
+        logger.info("Start of measurement thread")
         # the timestamp of the last flush to disk in s
         self.last_file_flush = -100
         # control flags
@@ -1040,8 +1117,10 @@ class MyWindow:
         self.thread_draw_pstat = threading.Thread(target=self.plot_pstat_curve)
         # Turn on the cell
         #self.lbl_cell_state.configure(text="Cell On", fg="green") TBR
+        logger.info("Setting cell ON")
         self.potentiostat.set_cell(True)
         # Start running the data acquisition curve
+        logger.info("Starting data acq.")
         self.acq_curve.run(True)
         self.thread_draw_pstat.start()
 
@@ -1051,6 +1130,7 @@ class MyWindow:
         loop_start_time = time.perf_counter_ns()
         while self.acq_curve.running():
             i += 1
+            logger.debug(f"run_measurement: Top of loop; i={i}")
             # Grab the most recent data point from PStat, including time, V, i, etc.
             now_pstat_pt = self.acq_curve.last_data_point()
             self.most_recent_pstat_pt = now_pstat_pt
@@ -1073,6 +1153,7 @@ class MyWindow:
                 now_intensities = (now_raw_intensities - self.dark_spec) / (self.reference_spec - self.dark_spec)
                 now_intensities = -1*np.log10(now_intensities)
 
+            logger.debug("run_measurement: Begin writing this row to disk")
             # Output this row to file
             self.outfile.write("\n")
             # Write time, potential, current
@@ -1080,17 +1161,21 @@ class MyWindow:
             # Write intensities
             for intensity in now_intensities:
                 self.outfile.write(f",{intensity}")
+            logger.debug("run_measurement: Row written to disk")
             
 
             # flush to disk every 30 s
             if (elapsed_time - self.last_file_flush > 30):
+                logger.debug("run_measurement: flushing file to disk")
                 self.outfile.flush()
                 self.last_file_flush = elapsed_time
 
             # update # of cycles label
             #self.lbl_running.configure(text=f"Running: Cycle {now_cycle}/{self.current_expt_max_cycles}", fg="green") TBR
             # calculate the time when we need to take the next data point
+            logger.debug("run_measurement: begin calculating next time we need to wait for")
             next_pt_time = np.floor(loop_start_time + i * self.num_freq_s * (1E9))
+            logger.debug("run_measurement: begin sleep til next time")
             perf_sleep_until(next_pt_time)
             # Below is legacy code - TBR
             # loop_end_time = time.perf_counter_ns()
@@ -1102,9 +1187,11 @@ class MyWindow:
         
         # Finish the measurement
         # Turn off the cell
+        logger.info("run_measurement: Setting cell OFF")
         self.potentiostat.set_cell(False)
         #self.lbl_cell_state.configure(text="Cell Off", fg="red") TBR
         # Close the file handle and flush to disk
+        logger.info("run_measurement: Closing and flushing main datafile to disk")
         self.outfile.close()
         # stop drawing pstat curve
         self.should_draw_pstat = False
@@ -1118,6 +1205,7 @@ class MyWindow:
         pstat_data_filename = f"{self.experiment_name}_Raw_PStat_Data_{now}.csv"
         pstat_data_filename = pstat_data_filename.replace(":", "-")
         pstat_data_filename = f"{self.save_dir}/{pstat_data_filename}"
+        logger.info("run_measurement: Attempting to write raw pstat data file to disk...")
         with open(pstat_data_filename, "w") as file_pstatdata:
             '''Side note here: Instead of pretty formatting as I've done for the files everywhere else
                in this program, I'm just outputting the data table as Gamry stores it.
@@ -1130,11 +1218,13 @@ class MyWindow:
             header="point,time,vf,vu,im,ach,vsig,temp,cycle,ie_range,overload,stop_test", comments='')
             # Save raw pstat data filename for zipping later 
             self.pstat_data_filename = pstat_data_filename
+            logger.info("run_measurement: Done!")
         # update GUI
         #self.lbl_running.configure(text="not running", fg="red") TBR
         self.running = False
         # try to send emails out to notify experiment is complete if the emails are there and expt wasn't ended early on purpose
         if (self.emails != "" and self.was_aborted == False):
+            logger.info("Trying to send emails...")
             self.try_send_notif_emails()
             self.try_send_file_emails()
     
@@ -1289,6 +1379,15 @@ class MyWindow:
             del self.acq_curve
             del self.potentiostat
 
+# Basic configure the logger
+# get current time for file name
+t_now = datetime.datetime.now()
+t_str = t_now.isoformat().replace(":", "-")
+# create logs folder if it does not exist
+log_folderpath = pathlib.Path("logs")
+log_folderpath.mkdir(exist_ok=True)
+# begin logging
+logging.basicConfig(filename=f"logs/{t_str}.log", level=logging.NOTSET) # NOTSET here means everything will be logged, can change this for proper releases
 # Initialize a Window object        
 window = MyWindow()
 # Schedule GUI update function
