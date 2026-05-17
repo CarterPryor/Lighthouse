@@ -1174,7 +1174,11 @@ class MyWindow:
             #self.lbl_running.configure(text=f"Running: Cycle {now_cycle}/{self.current_expt_max_cycles}", fg="green") TBR
             # calculate the time when we need to take the next data point
             logger.debug("run_measurement: begin calculating next time we need to wait for")
-            next_pt_time = np.floor(loop_start_time + i * self.num_freq_s * (1E9))
+            try:
+                next_pt_time = np.floor(loop_start_time + i * self.num_freq_s * (1E9))
+            except FloatingPointError:
+                logger.exception(f"run_measurement: Integer overflow or underflow detected. Terminating measurement.")
+                self.abort_measurement()
             logger.debug("run_measurement: begin sleep til next time")
             perf_sleep_until(next_pt_time)
             # Below is legacy code - TBR
@@ -1379,8 +1383,8 @@ class MyWindow:
             del self.acq_curve
             del self.potentiostat
 
-# log exceptions in case of floating point going over/under
-np.seterr(over="log", under="log")
+# raise exceptions in case of floating point going over/under
+np.seterr(over="raise", under="raise")
 # Basic configure the logger
 # get current time for file name
 t_now = datetime.datetime.now()
