@@ -20,6 +20,7 @@ TODO:
 - Break up code into multiple files to increase readability
 
 - Fix bug preventing running too long experiments (sequence wizard type thing)
+- Fix potential bug where minimizing may have caused freezes (reported by Shuvo)
 
 - Test everything flushes every 30 s correctly
 
