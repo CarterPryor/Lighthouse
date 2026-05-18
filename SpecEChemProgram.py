@@ -37,6 +37,7 @@ import threading
 # and for logging
 import logging
 import pathlib
+import math
 
 # Import Python's built-in GUI library
 import tkinter as tk
@@ -1176,9 +1177,12 @@ class MyWindow:
             # calculate the time when we need to take the next data point
             logger.debug("run_measurement: begin calculating next time we need to wait for")
             try:
-                next_pt_time = np.floor(loop_start_time + i * self.num_freq_s * (1E9))
+                next_pt_time = np.floor(loop_start_time + i * self.num_freq_s * (1E9)) # should i cast to int?
             except FloatingPointError:
                 logger.exception(f"run_measurement: Integer overflow or underflow detected. Terminating measurement.")
+                self.abort_measurement()
+            if (math.isinf(next_pt_time)):
+                logger.exception(f"Overflow detected. Aborting measurement")
                 self.abort_measurement()
             logger.debug("run_measurement: begin sleep til next time")
             perf_sleep_until(next_pt_time)
