@@ -21,6 +21,8 @@ TODO:
 
 - Fix bug preventing running too long experiments (sequence wizard type thing)
 - Fix potential bug where minimizing may have caused freezes (reported by Shuvo)
+- Potential bug where apparently plotting for spectrum stopped working after expt started
+(The log shows the draw loop hadn't crashed at all - so something weird really apparently)
 
 - Test everything flushes every 30 s correctly
 
@@ -313,7 +315,11 @@ class MyWindow:
 
         # variable that stores if we should be repeatedly looping drawing the spectrum
         self.should_draw_spec = False
-        # self.spec_draw_time = 5 # seconds, time between draws TBR
+        self.should_reset_spec_limits = False # flag that indicates that spectrometer plot limits need to be reset
+        # variables storing the limits for each plotting mode besides 
+        self.spec_plot_ylims_sub = (0, 180000)
+        self.spec_plot_ylims_t = (-0.1, 1.1)
+        self.spec_plot_ylims_abs = (-0.1, 2)
 
         # Label and box to input how often we collect spectra
         self.lbl_collect = tk.Label(self.frame_spec, text="Collect every:")
@@ -336,6 +342,8 @@ class MyWindow:
         self.spec_intensity_type = tk.StringVar()
         self.combo_spec_intensity_type = tk.ttk.Combobox(self.frame_spec, width=10, textvariable=self.spec_intensity_type)
         self.combo_spec_intensity_type["values"] = ("Raw Int.", "Raw Int. - Ref", "%T or %R", "Abs")
+        # Callback to trigger redraws if the box is selected
+        self.combo_spec_intensity_type.bind("<<ComboboxSelected>>", self.combo_spec_intensity_changed)
         # Raw intensity = raw spectrometer data
         # Raw Int. - Ref = Raw spectrometer data minus the saved reference spectrum
         # %T or %R = (Raw spectrum - dark spectrum) / (Ref. Spectrum - dark spectrum)
@@ -450,6 +458,11 @@ class MyWindow:
         self.save_dir = filedialog.askdirectory(initialdir=self.save_dir)
         self.lbl_filename.configure(text=f"Save to: {self.save_dir}")
 
+    def combo_spec_intensity_changed(self, event):
+        # trigger a reset of the spec limits
+        if (self.has_spectrometer == True):
+            self.should_reset_spec_limits = True
+
     def canv_spectrum_popup(self, event):
         try:
             self.menu_canv_spectrum.tk_popup(event.x_root, event.y_root)
@@ -462,9 +475,8 @@ class MyWindow:
             return
         # ask new ymin
 
-        # set y-limits on matplotlib Figure
-
-        # redraw
+        # flag spec plot limits for an update
+        self.should_reset_spec_limits = True
         
 
     def canv_spectrum_set_ymax(self):
@@ -602,31 +614,39 @@ class MyWindow:
                 self.line2d_spec.set_ydata(now_intensities)
                 # set max int. line visible if not visible
                 self.line2d_spec_int_max.set_visible(True)
-                # set y-scale
-                self.axes_spectrum.set_ylim(0, 180000)
+                if (self.should_reset_spec_limits == True):
+                    # set y-scale
+                    self.axes_spectrum.set_ylim(0, 180000)
+                    self.should_reset_spec_limits = False
             elif (intensity_type == "Raw Int. - Ref" and self.has_reference_spec):
                 logger.debug("Updating y-data for raw - ref")
                 # update line data
                 calc_intensities = now_intensities - self.reference_spec
                 self.line2d_spec.set_ydata(calc_intensities)
                 self.line2d_spec_int_max.set_visible(False)
-                # autoscale the y
-                self.axes_spectrum.autoscale_view(scalex=False, scaley=True)
+                if (self.should_reset_spec_limits == True):
+                    # set y-scale
+                    self.axes_spectrum.set_ylim(self.spec_plot_ylims_sub)
+                    self.should_reset_spec_limits = False
             elif (intensity_type == "%T or %R" and self.has_reference_spec):
                 logger.debug("Updating y-data for %T/%R")
                 calc_intensities = (now_intensities - self.dark_spec) / (self.reference_spec - self.dark_spec)
                 self.line2d_spec.set_ydata(calc_intensities)
                 self.line2d_spec_int_max.set_visible(False)
-                # autoscale the y
-                self.axes_spectrum.autoscale_view(scalex=False, scaley=True)
+                if (self.should_reset_spec_limits == True):
+                    # set y-scale
+                    self.axes_spectrum.set_ylim(self.spec_plot_ylims_t)
+                    self.should_reset_spec_limits = False
             elif (intensity_type == "Abs" and self.has_reference_spec):
                 logger.debug("Updating y-data for Abs")
                 calc_T = (now_intensities - self.dark_spec) / (self.reference_spec - self.dark_spec)
                 calc_intensities = np.log10(calc_T)
                 self.line2d_spec.set_ydata(calc_intensities)
                 self.line2d_spec_int_max.set_visible(False)
-                # autoscale the y
-                self.axes_spectrum.autoscale_view(scalex=False, scaley=True)
+                if (self.should_reset_spec_limits == True):
+                    # set y-scale
+                    self.axes_spectrum.set_ylim(self.spec_plot_ylims_abs)
+                    self.should_reset_spec_limits = False
             logger.debug("draw_spec: calling draw_idle()")
             self.canv_spectrum.draw_idle()
             logger.debug("draw_spec: calling flush_events()")
