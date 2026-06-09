@@ -11,9 +11,7 @@
 
 '''
 TODO:
-- Make sure that the first data point taken of each cycle is synced well to the start of that cycle. New perf counter func
- should make this better, but check
-- Update email sending to include whether or not expt finished completely
+ - Update email sending to include whether or not expt finished completely
 - Warning if user pstat settings are over max number of data points
 - fix the bounds of each plotting window, and only change it when user asks
 - Change the threading model to avoid worker threads pushing GUI updates (plotting)
@@ -26,7 +24,7 @@ TODO:
 
 - Test everything flushes every 30 s correctly
 
-- Use blitting to enhance matplotlib render speed
+- Consider additionally snapping the data collection to the start of each cycle to improve stability
 - Allow user to choose the maximum current before automatic stop
 - Make an option (either another program or an option in this one) for chronocoulometry and perhaps for open circuit measurements
 '''
