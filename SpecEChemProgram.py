@@ -1196,9 +1196,14 @@ class MyWindow:
             # calculate the time when we need to take the next data point
             logger.debug("run_measurement: begin calculating next time we need to wait for")
             try:
-                next_pt_time = np.floor(loop_start_time + i * self.num_freq_s * (1E9)) # should i cast to int?
+                # note - the cast to int here is necessary because ints in python can grow arbitrarily large
+                # floats can overflow. This number overflowing can cause hangs that interrupt a measurement
+                next_pt_time = np.floor(loop_start_time + i * int(self.num_freq_s) * (10**9))
             except FloatingPointError:
-                logger.exception(f"run_measurement: Integer overflow or underflow detected. Terminating measurement.")
+                logger.error(f"run_measurement: Integer overflow or underflow detected. Terminating measurement.")
+                self.abort_measurement()
+            except OverflowError:
+                logger.error(f"run_measurement: Integer overflow or underflow detected. Terminating measurement.")
                 self.abort_measurement()
             if (math.isinf(next_pt_time)):
                 logger.exception(f"Overflow detected. Aborting measurement")
