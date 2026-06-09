@@ -1206,7 +1206,7 @@ class MyWindow:
                 logger.error(f"run_measurement: Integer overflow or underflow detected. Terminating measurement.")
                 self.abort_measurement()
             if (math.isinf(next_pt_time)):
-                logger.exception(f"Overflow detected. Aborting measurement")
+                logger.error(f"Overflow detected. Aborting measurement")
                 self.abort_measurement()
             logger.debug("run_measurement: begin sleep til next time")
             perf_sleep_until(next_pt_time)
