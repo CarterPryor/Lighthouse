@@ -20,7 +20,6 @@ TODO:
 - Fix bug preventing running too long experiments (sequence wizard type thing)
 - Fix potential bug where minimizing may have caused freezes (reported by Shuvo)
 - Potential bug where apparently plotting for spectrum stopped working after expt started
-(The log shows the draw loop hadn't crashed at all - so something weird really apparently)
 
 - Test everything flushes every 30 s correctly
 
