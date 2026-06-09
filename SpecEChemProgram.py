@@ -105,6 +105,8 @@ class MyWindow:
 
         # attach the function that runs before exiting, confirming we want to quit
         self.root.protocol("WM_DELETE_WINDOW", self.confirm_quit)
+        # for now, make window not resizeable until I change the plot updates to be in main thread
+        self.root.resizable(False, False)
 
         # Then, add all the pieces to the GUI
 
