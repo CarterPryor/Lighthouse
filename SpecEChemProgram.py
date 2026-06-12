@@ -358,6 +358,8 @@ class MyWindow:
         self.spectrometer = None
         self.reference_spec = None
         self.dark_spec = None
+        # a lock on accessing the spectrometer between threads
+        self.spectrometer_lock = threading.Lock()
 
         ### End spectrometer related initialization code
 
@@ -604,7 +606,9 @@ class MyWindow:
     def draw_spec(self):
         logger.debug("draw_spec: Beginning of call")
         if (self.has_spectrometer):
-            now_intensities = self.spectrometer.intensities(self.enable_dark_correction, self.enable_nonlinearity_correction)
+            # block access to spectrometer til intensities call returns
+            with self.spectrometer_lock:
+                now_intensities = self.spectrometer.intensities(self.enable_dark_correction, self.enable_nonlinearity_correction)
             intensity_type = self.spec_intensity_type.get()
 
             if (intensity_type == "Raw Int."):
@@ -716,15 +720,16 @@ class MyWindow:
     # Sets integration time based off the value user has in the box for it
     def set_integ_time(self):
         # only need to do anything if spectrometer is connected
-        if (self.has_spectrometer):
+        if (self.has_spectrometer and self.running == False):
             # Try to convert the text to a float, if it doesn't work let the user know
             try:
                 integ_time_micros = 1000 * float(self.integ_time_txt.get())
                 # Double check that integ time falls within limits
                 limits = self.spectrometer.integration_time_micros_limits
                 if (integ_time_micros > limits[0]) and (integ_time_micros < limits[1]):
-                    self.spectrometer.integration_time_micros(integ_time_micros)
-                    self.integration_time_micros = integ_time_micros
+                    with self.spectrometer_lock:
+                        self.spectrometer.integration_time_micros(integ_time_micros)
+                        self.integration_time_micros = integ_time_micros
                 else:
                     mbox.showwarning("Could not set integ. time", "Value is outside hardcoded spectrometer limits")
             except ValueError:
@@ -732,8 +737,9 @@ class MyWindow:
 
     # Stores reference spectrum based on current spectrometer input
     def store_reference_spectrum(self):
-        if (self.has_spectrometer):
-            self.reference_spec = self.spectrometer.intensities(self.enable_dark_correction, self.enable_nonlinearity_correction)
+        if (self.has_spectrometer and self.running == False):
+            with self.spectrometer_lock:
+                self.reference_spec = self.spectrometer.intensities(self.enable_dark_correction, self.enable_nonlinearity_correction)
             self.has_reference_spec = True
             logger.info("Stored reference spectrum successfully")
             print("Stored reference spectrum successfully")
@@ -741,8 +747,9 @@ class MyWindow:
     # Stores dark spectrum based on current spectrometer input
     # Dark spectrum is subtracted from what we actually measure
     def store_dark_spectrum(self):
-        if (self.has_spectrometer):
-            self.dark_spec = self.spectrometer.intensities(self.enable_dark_correction, self.enable_nonlinearity_correction)
+        if (self.has_spectrometer and self.running == False):
+            with self.spectrometer_lock:
+                self.dark_spec = self.spectrometer.intensities(self.enable_dark_correction, self.enable_nonlinearity_correction)
             logger.info("Stored dark spectrum successfully")
             print("Stored dark spectrum successfully")
 
@@ -760,7 +767,8 @@ class MyWindow:
             return
 
         # Get the current intensities
-        now_intensities = self.spectrometer.intensities(self.enable_dark_correction, self.enable_nonlinearity_correction)
+        with self.spectrometer_lock:
+            now_intensities = self.spectrometer.intensities(self.enable_dark_correction, self.enable_nonlinearity_correction)
         # Get the current time
         now = datetime.datetime.now()
 
@@ -1159,8 +1167,9 @@ class MyWindow:
             now_potential = now_pstat_pt[2]
             now_current = now_pstat_pt[4]
             now_cycle = now_pstat_pt[8]
-            # Grab the most recent spectrum
-            now_raw_intensities = self.spectrometer.intensities(self.enable_dark_correction, self.enable_nonlinearity_correction)
+            # Grab the most recent spectrum, blocking spectrometer access until it returns
+            with self.spectrometer_lock:
+                now_raw_intensities = self.spectrometer.intensities(self.enable_dark_correction, self.enable_nonlinearity_correction)
 
             # calculate desired intensity type
             if (self.running_intensity_type == "Raw Int."):
