@@ -1168,9 +1168,10 @@ class MyWindow:
             now_current = now_pstat_pt[4]
             now_cycle = now_pstat_pt[8]
             # Grab the most recent spectrum, blocking spectrometer access until it returns
+            logger.debug("run_measurement: Trying to get spectrometer intensities")
             with self.spectrometer_lock:
                 now_raw_intensities = self.spectrometer.intensities(self.enable_dark_correction, self.enable_nonlinearity_correction)
-
+            logger.debug("run_measurement: Beginning calculating intensities")
             # calculate desired intensity type
             if (self.running_intensity_type == "Raw Int."):
                 now_intensities = now_raw_intensities
