@@ -11,7 +11,7 @@
 
 '''
 TODO:
- - Update email sending to include whether or not expt finished completely
+- Update email sending to include whether or not expt finished completely
 - Warning if user pstat settings are over max number of data points
 - fix the bounds of each plotting window, and only change it when user asks
 - Change the threading model to avoid worker threads pushing GUI updates (plotting)
@@ -496,7 +496,6 @@ class MyWindow:
         # flag spec plot limits for an update
         self.should_reset_spec_limits = True
         
-
     def canv_spectrum_set_ymax(self):
         # do nothing if we aren't plotting
         if (self.has_spectrometer == False):
