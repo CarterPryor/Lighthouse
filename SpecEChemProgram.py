@@ -1,6 +1,6 @@
 # Graphical program for collecting electrochemical and spectral data simultaneously using a Gamry potentiostat and OceanOptics spectrometer
 # Originally written by Carter Pryor (carter_pryor@outlook.com) for Graham group at UKY
-# Last modified 2026-04-30
+# Last modified 2026-06-12
 
 # Recommended sample period: >=0.1 s according to Gamry docs
 
@@ -18,8 +18,6 @@ TODO:
 - Break up code into multiple files to increase readability
 
 - Fix bug preventing running too long experiments (sequence wizard type thing)
-- Fix potential bug where minimizing may have caused freezes (reported by Shuvo)
-- Potential bug where apparently plotting for spectrum stopped working after expt started
 
 - Test everything flushes every 30 s correctly
 
@@ -307,8 +305,8 @@ class MyWindow:
         self.canv_spectrum = FigureCanvasTkAgg(self.figure_spectrum, self.frame_spec)
         # right-click context menu for the spectrum
         self.menu_canv_spectrum = tk.Menu(self.canv_spectrum.get_tk_widget(), tearoff=0)
-        self.menu_canv_spectrum.add_command(label="Set y-min")
-        self.menu_canv_spectrum.add_command(label="Set y-max")
+        self.menu_canv_spectrum.add_command(label="Set y-min", command=self.canv_spectrum_set_ymin)
+        self.menu_canv_spectrum.add_command(label="Set y-max", command=self.canv_spectrum_set_ymax)
         self.canv_spectrum.get_tk_widget().bind("<Button-3>", self.canv_spectrum_popup)
         self.canv_spectrum.get_tk_widget().place(x=6, y=160)
 
@@ -474,8 +472,27 @@ class MyWindow:
         # do nothing if we aren't plotting
         if (self.has_spectrometer == False):
             return
+        
         # ask new ymin
-
+        intensity_type = self.spec_intensity_type.get()
+        if (intensity_type == "Raw Int."):
+            # we always use the same limits for this type, so do nothing
+            return
+        elif (intensity_type == "Raw Int. - Ref"):
+            old_min, old_max = self.spec_plot_ylims_sub
+            new_ymin = simpledialog.askfloat("Spectrometer Plot y-min", "Enter the new y-min", initialvalue=old_min)
+            if (new_ymin is not None):
+                self.spec_plot_ylims_sub = (new_ymin, old_max)
+        elif (intensity_type == "%T or %R"):
+            old_min, old_max = self.spec_plot_ylims_t
+            new_ymin = simpledialog.askfloat("Spectrometer Plot y-min", "Enter the new y-min", initialvalue=old_min)
+            if (new_ymin is not None):
+                self.spec_plot_ylims_t = (new_ymin, old_max)
+        elif (intensity_type == "Abs"):
+            old_min, old_max = self.spec_plot_ylims_abs
+            new_ymin = simpledialog.askfloat("Spectrometer Plot y-min", "Enter the new y-min", initialvalue=old_min)
+            if (new_ymin is not None):
+                self.spec_plot_ylims_abs = (new_ymin, old_max)
         # flag spec plot limits for an update
         self.should_reset_spec_limits = True
         
@@ -484,6 +501,29 @@ class MyWindow:
         # do nothing if we aren't plotting
         if (self.has_spectrometer == False):
             return
+        
+        # ask new ymin
+        intensity_type = self.spec_intensity_type.get()
+        if (intensity_type == "Raw Int."):
+            # we always use the same limits for this type, so do nothing
+            return
+        elif (intensity_type == "Raw Int. - Ref"):
+            old_min, old_max = self.spec_plot_ylims_sub
+            new_ymax = simpledialog.askfloat("Spectrometer Plot y-max", "Enter the new y-max", initialvalue=old_max)
+            if (new_ymax is not None):
+                self.spec_plot_ylims_sub = (old_min, new_ymax)
+        elif (intensity_type == "%T or %R"):
+            old_min, old_max = self.spec_plot_ylims_t
+            new_ymax = simpledialog.askfloat("Spectrometer Plot y-max", "Enter the new y-max", initialvalue=old_max)
+            if (new_ymax is not None):
+                self.spec_plot_ylims_t = (old_min, new_ymax)
+        elif (intensity_type == "Abs"):
+            old_min, old_max = self.spec_plot_ylims_abs
+            new_ymax = simpledialog.askfloat("Spectrometer Plot y-max", "Enter the new y-max", initialvalue=old_max)
+            if (new_ymax is not None):
+                self.spec_plot_ylims_abs = (old_min, new_ymax)
+        # flag spec plot limits for an update
+        self.should_reset_spec_limits = True
 
     # Attempt to access the Gamry Potentiostat
     def connect_pstat(self):
