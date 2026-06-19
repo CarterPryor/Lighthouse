@@ -1,6 +1,6 @@
 # Graphical program for collecting electrochemical and spectral data simultaneously using a Gamry potentiostat and OceanOptics spectrometer
 # Originally written by Carter Pryor (carter_pryor@outlook.com) for Graham group at UKY
-# Last modified 2026-06-12
+# Last modified 2026-06-19
 
 # Recommended sample period: >=0.1 s according to Gamry docs
 
@@ -13,8 +13,6 @@
 TODO:
 - Update email sending to include whether or not expt finished completely
 - Warning if user pstat settings are over max number of data points
-- fix the bounds of each plotting window, and only change it when user asks
-- Change the threading model to avoid worker threads pushing GUI updates (plotting)
 - Break up code into multiple files to increase readability
 
 - Fix bug preventing running too long experiments (sequence wizard type thing)
@@ -868,6 +866,7 @@ class MyWindow:
         logger.info("Successfully wrote file")
 
     # Function to plot the pstat data from currently running experiment
+    ''' LEGACY CODE TBR
     def plot_pstat_curve(self):
         # pause very briefly to allow for initial data collection
         logger.info("Starting pstat curve plotting")
@@ -952,6 +951,130 @@ class MyWindow:
             else:
                 time.sleep(3)
 
+    '''
+    def plot_first_pstat_curve(self):
+        logger.info("Starting pstat curve plotting")
+        # Pause to allow for initial data collection
+        time.sleep(0.5)
+
+        logger.debug("plot_first_pstat_curve: getting last data pt")
+        now_pstat_pt = self.acq_curve.last_data_point()
+        num_pts = self.acq_curve.count()
+
+        # plot dummy data if we don't have enough points yet
+        if (num_pts < 2 or now_pstat_pt is None):
+            logger.debug("plot_first_pstat_curve: not enough points to plot, plotting dummy data")
+            self.line2d_cv = self.axes_cv.plot([0], [0])
+            self.line2d_cv_currentcycle = self.axes_cv.plot([-10], [0], color="red")
+        else:
+            logger.debug("plot_first_pstat_curve: plotting first points")
+            data = self.acq_curve.acq_data()
+            potentials = data["vf"]
+            currents = data["im"]
+        
+            # plot & create line2d object to update later
+            self.line2d_cv = self.axes_cv.plot(potentials, currents, color="blue")
+            self.line2d_cv_currentcycle = self.axes_cv.plot([-10], [0], color="red")
+
+        logger.debug("plot_first_pstat_curve: Setting x-limits")
+        # fix x-bounds to the known potential window
+        self.axes_cv.autoscale(enable=False, axis="both")
+        if (self.current_expt_v1 < self.current_expt_v2):
+            self.axes_cv.set_xlim(self.current_expt_v1, self.current_expt_v2)
+        else:
+            self.axes_cv.set_xlim(self.current_expt_v2, self.current_expt_v1)
+
+        # label axes
+        self.axes_cv.set_xlabel("WE Potential (V)")
+        self.axes_cv.set_ylabel("Current (A)")
+        # grid
+        self.axes_cv.grid()
+        # draw the updates
+        logger.debug("plot_first_pstat_curve: beginning draw call")
+        self.canv_cv.draw_idle()
+        logger.debug("plot_first_pstat_curve: flush events call")
+        self.canv_cv.flush_events()
+        # queue up the next draw
+        logger.debug("plot_first_pstat_curve: calling root.after()")
+        self.root.after(1000, self.plot_pstat_curve)
+        
+    # Function to plot the pstat data from currently running experiment
+    def plot_pstat_curve(self):
+        logger.info("plot_pstat_curve: Top of function")
+        # end loops to this once experiment is concluded
+        if (self.should_draw_pstat == False):
+            logger.debug("plot_pstat_curve: Exiting b/c should_draw_pstat is False")
+            return
+
+        logger.debug("plot_pstat_curve: Getting last data point")
+        now_pstat_pt = self.acq_curve.last_data_point()
+        num_pts = self.acq_curve.count()
+        elapsed_time = now_pstat_pt[1]
+
+        logger.debug("plot_pstat_curve: Calling acq_data()")
+        # get all the data
+        data = self.acq_curve.acq_data()
+        potentials = data["vf"]
+        currents = data["im"]
+        cycles = data["cycle"]
+
+        # downscale for large # of pts
+        if (num_pts < 10000):
+            logger.debug("plot_pstat_curve: no downscaling necessary")
+            plot_potentials = potentials
+            plot_currents = currents
+            plot_cycles = cycles
+        elif (num_pts < 100000):
+            logger.debug("plot_pstat_curve: >10k data points. Downscaling to every 5th point")
+            plot_potentials = potentials[::5]
+            plot_currents = currents[::5]
+            plot_cycles  = cycles[::5]
+        else:
+            logger.debug("plot_pstat_curve: >100k data points. Downscaling to every 10th data point")
+            plot_potentials = potentials[::10]
+            plot_currents = currents[::10]
+            plot_cycles = cycles[::10]
+        
+        # set new y-limits based on the max in the data we are plotting
+        logger.debug("plot_pstat_curve: Setting new y-lims")
+        ymin = np.min(plot_currents)
+        ymax = np.max(plot_currents)
+
+        self.axes_cv.set_ylim(ymin, ymax)
+
+        # find the index where the current cycle begins
+        # TODO: could probably save time on this argmax call by caching the cycle & index and only updating it when the
+        # # of cycles is different 
+        now_cycle = now_pstat_pt[8]
+        logger.debug("plot_pstat_curve: calling np.argmax() to find current cycle idx")
+        now_cycle_index = np.argmax(plot_cycles == now_cycle) # this returns 0 if the first index is 0 or 0 on a fail to find
+        if (now_cycle_index == 0):
+            # in the "0 index case" - we have either only the first cycle, 
+            # or some weird error where we couldn't find the current cycle in our data here
+            # regardless, just plot everything as-is
+            logger.debug("plot_pstat_curve: calling set_data() for all cycles in blue")
+            self.line2d_cv.set_data(plot_potentials, plot_currents)
+        else: # if we have > 1 cycle & we can find an index, sketch current cycle in different color
+            # plot everything up to where the current cycle starts in blue
+            logger.debug("plot_pstat_curve: calling set_data() for previous cycles in blue")
+            self.line2d_cv.set_data(plot_potentials[:now_cycle_index], plot_currents[:now_cycle_index])
+            # plot everything after in red
+            logger.debug("plot_pstat_curve: calling set_data() for current cycle in red")
+            self.line2d_cv_currentcycle.set_data(plot_potentials[now_cycle_index:], plot_currents[now_cycle_index:])
+
+        # draw the updates
+        logger.debug("plot_pstat_curve: calling draw_idle()")
+        self.canv_cv.draw_idle()
+        logger.debug("plot_pstat_curve: calling flush_events()")
+        self.canv_cv.flush_events()
+        # schedule the next draw
+        if (elapsed_time < 60):
+            logger.debug("plot_pstat_curve: calling root.after() for 1s")
+            self.root.after(1000, self.plot_pstat_curve)
+        else:
+            logger.debug("plot_pstat_curve: calling root.after() for 5s")
+            self.root.after(5000, self.plot_pstat_curve)
+
     def start_measurement(self):
         logger.info("Attempting to start measurement")
         # if already running, do nothing
@@ -973,6 +1096,8 @@ class MyWindow:
             return
 
         self.current_expt_max_cycles = cycles_num
+        self.current_expt_v1 = v1_num
+        self.current_expt_v2 = v2_num
 
         # Make sure collection time > integration time
         integration_time_ms = self.integration_time_micros / 1000
@@ -1164,6 +1289,7 @@ class MyWindow:
         # self.lbl_running.configure(text=f"Running: Cycle 0/{self.current_expt_max_cycles}", fg="green") TBR
 
         ### Next - Actually begin the run!
+        self.should_draw_pstat = True
         self.was_aborted = False # flag for if expt was forcibly ended prematurely
         self.time_start = time.time()
         self.calc_run_time = np.abs(v2_num-v1_num) / scanrate_num * 2 * cycles_num
@@ -1171,7 +1297,10 @@ class MyWindow:
         self.num_freq_s = collection_time_ms/1000
         logger.info("Constructing measurement thread")
         self.thread_measurement = threading.Thread(target=self.run_measurement)
+        logger.info("Starting measurement thread")
         self.thread_measurement.start()
+        logger.info("Calling plot_first_pstat_curve()")
+        self.plot_first_pstat_curve()
 
     # The actual looping action of measuring
     def run_measurement(self):
@@ -1180,9 +1309,6 @@ class MyWindow:
         self.last_file_flush = -100
         # control flags
         self.running = True
-        self.should_draw_pstat = True
-        # thread where the potentiostat curve is drawn
-        self.thread_draw_pstat = threading.Thread(target=self.plot_pstat_curve)
         # Turn on the cell
         #self.lbl_cell_state.configure(text="Cell On", fg="green") TBR
         logger.info("Setting cell ON")
@@ -1190,7 +1316,6 @@ class MyWindow:
         # Start running the data acquisition curve
         logger.info("Starting data acq.")
         self.acq_curve.run(True)
-        self.thread_draw_pstat.start()
 
         # # of data points counter
         i = 0
@@ -1450,7 +1575,6 @@ class MyWindow:
             # which should write the data to disk and finish cleanup after measurement
             self.was_aborted = True
             self.acq_curve.stop()
-
 
     # Destructor - make sure to close the potentiostat so other programs can use it when we are done       
     def __del__(self): 
